@@ -10,9 +10,6 @@ This app is built on top of Samba 4.5.1.
 Android SDK and NDK r13b or above are required to build this app. Android Studio is highly
 recommended.
 
-Check out Samba Documents Provider code into a folder called `SambaDocumentsProvider` to
-avoid Android Studio module name change.
-
 ### Build Steps
 1. Download and unarchive Samba 4.5.1 [source code][samba-source].
 2. Change directory to the root of Samba source code.
