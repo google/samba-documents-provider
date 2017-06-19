@@ -1,0 +1,875 @@
+diff --git a/build_answers b/build_answers
+new file mode 100644
+index 0000000..8328778
+--- /dev/null
++++ b/build_answers
+@@ -0,0 +1,38 @@
++Checking uname sysname type: "Linux"
++Checking uname machine type: "arm"
++Checking uname release type: "Linux"
++Checking uname version type: "Linux"
++Checking simple C program: OK
++rpath library support: FAIL
++-Wl,--version-script support: FAIL
++Checking getconf LFS_CFLAGS: FAIL
++Checking for large file support without additional flags: FAIL
++Checking for -D_FILE_OFFSET_BITS=64: OK
++Checking for -D_LARGE_FILES: FAIL
++Checking correct behavior of strtoll: OK
++Checking for working strptime: OK
++Checking for C99 vsnprintf: OK
++Checking for HAVE_SHARED_MMAP: FAIL
++Checking for HAVE_MREMAP: FAIL
++Checking for HAVE_INCOHERENT_MMAP: FAIL
++Checking for HAVE_SECURE_MKSTEMP: FAIL
++Checking for HAVE_IFACE_GETIFADDRS: OK
++Checking value of NSIG: "65"
++Checking value of _NSIG: "65"
++Checking value of SIGRTMAX: "64"
++Checking value of SIGRTMIN: "35"
++Checking for kernel change notify support: FAIL
++Checking for Linux kernel oplocks: FAIL
++Checking for kernel share modes: OK
++vfs_fileid checking for statfs() and struct statfs.f_fsid: OK
++Checking whether we can use Linux thread-specific credentials with 32-bit system calls: OK
++Checking whether seteuid is available: OK
++Checking whether setreuid is available: OK
++Checking whether setresuid is available: OK
++Checking whether fcntl locking is available: OK
++Checking for the maximum value of the 'time_t' type: FAIL
++Checking whether the realpath function allows a NULL argument: FAIL
++Checking for ftruncate extend: FAIL
++getcwd takes a NULL argument: OK
++Checking for HAVE_IFACE_IFCONF: FAIL
++Checking whether we can use Linux thread-specific credentials: FAIL
+diff --git a/buildtools/wafsamba/wafsamba.py b/buildtools/wafsamba/wafsamba.py
+index 4a47dbf..3b46b1b 100644
+--- a/buildtools/wafsamba/wafsamba.py
++++ b/buildtools/wafsamba/wafsamba.py
+@@ -143,6 +143,9 @@ def SAMBA_LIBRARY(bld, libname, source,
+                   enabled=True):
+     '''define a Samba library'''
+ 
++    if pyembed or pyext:
++        return
++
+     if pyembed and bld.env['IS_EXTRA_PYTHON']:
+         public_headers = pc_files = None
+ 
+@@ -294,6 +297,14 @@ def SAMBA_LIBRARY(bld, libname, source,
+                 bld.add_manual_dependency(bld.path.find_or_declare(instname), bld.path.find_or_declare(vscript))
+             vscript = os.path.join(bld.path.abspath(bld.env), vscript)
+ 
++    if soname is not None:
++        segs = soname.split(".");
++        idxso = segs.index("so");
++        soname = ".".join(segs[:idxso])
++    else:
++        vnum=None
++        soname="lib" + bundled_name + ".so"
++
+     bld.SET_BUILD_GROUP(group)
+     t = bld(
+         features        = features,
+@@ -365,6 +376,9 @@ def SAMBA_BINARY(bld, binname, source,
+                  enabled=True):
+     '''define a Samba binary'''
+ 
++    if pyembed:
++        return
++
+     if not enabled:
+         SET_TARGET_TYPE(bld, binname, 'DISABLED')
+         return
+@@ -466,6 +480,9 @@ def SAMBA_MODULE(bld, modname, source,
+                  ):
+     '''define a Samba module.'''
+ 
++    if pyembed:
++        return
++
+     bld.ASSERT(subsystem, "You must specify a subsystem for SAMBA_MODULE(%s)" % modname)
+ 
+     source = bld.EXPAND_VARIABLES(source, vars=vars)
+@@ -570,6 +587,9 @@ def SAMBA_SUBSYSTEM(bld, modname, source,
+                     pyembed=False):
+     '''define a Samba subsystem'''
+ 
++    if pyembed or pyext:
++        return
++
+     if not enabled:
+         SET_TARGET_TYPE(bld, modname, 'DISABLED')
+         return
+diff --git a/cc_shim.py b/cc_shim.py
+new file mode 100755
+index 0000000..39c8b73
+--- /dev/null
++++ b/cc_shim.py
+@@ -0,0 +1,39 @@
++#!/usr/bin/python
++
++import re
++import sys
++from subprocess import call
++
++is_host=False
++
++armv7_flags=["-march=armv7-a", "-mfloat-abi=softfp", "-mfpu=vfpv3-d16", "-Wl,--fix-cortex-a8"]
++
++match_pattern=[r'.*asn1/gen_template.*\.o', r'.*compile_et.*\.o', r'.*print_version.*\.o', r'.*version_129\.o']
++
++match_pattern=[re.compile(pattern) for pattern in match_pattern]
++
++for i in sys.argv:
++  if i == '-D_SAMBA_HOSTCC_':
++    is_host=True
++
++  for pattern in match_pattern:
++    if pattern.match(i):
++      is_host=True
++
++if is_host:
++  cmd=['gcc'];
++  for arg in sys.argv[2:]:
++    append=True
++    if arg.startswith('--sysroot'):
++      append=False
++
++    for flag in armv7_flags:
++      if arg == flag:
++        append=False
++
++    if append:
++      cmd.append(arg)
++
++  call(cmd, stdout=sys.stdout, stderr=sys.stderr)
++else:
++  call(sys.argv[1:], stdout=sys.stdout, stderr=sys.stderr)
+diff --git a/compile.sh b/compile.sh
+new file mode 100755
+index 0000000..0da1e32
+--- /dev/null
++++ b/compile.sh
+@@ -0,0 +1,4 @@
++#!/bin/bash
++CWD=$(pwd)
++
++WAF_MAKE=1 python $CWD/buildtools/bin/waf build --targets=smbclient $*
+diff --git a/configure.sh b/configure.sh
+new file mode 100755
+index 0000000..64abcc3
+--- /dev/null
++++ b/configure.sh
+@@ -0,0 +1,44 @@
++#!/bin/bash
++CWD=$(pwd)
++
++NDK=$ANDROID_SDK/ndk-bundle
++
++HOST=linux-x86_64
++
++ANDROID_VER=21
++TOOLCHAIN_VER=4.9
++
++# Flags for 32-bit ARM
++#ABI=arm-linux-androideabi
++#PLATFORM_ARCH=arch-arm
++#CMD_PREFIX=arm-linux-androideabi
++
++# Flags for ARM v7 used with flags for 32-bit ARM to compile for ARMv7
++#COMPILER_FLAG="-march=armv7-a -mfloat-abi=softfp -mfpu=vfpv3-d16"
++#LINKER_FLAG="-march=armv7-a -Wl,--fix-cortex-a8"
++
++# Flags for 64-bit ARM v8
++ABI=aarch64-linux-android
++PLATFORM_ARCH=arch-arm64
++CMD_PREFIX=aarch64-linux-android
++
++# Flags for x86
++#ABI=x86
++#PLATFORM_ARCH=arch-x86
++#CMD_PREFIX=i686-linux-android
++
++# Flags for x86_64
++#ABI=x86_64
++#PLATFORM_ARCH=arch-x86_64
++#CMD_PREFIX=x86_64-linux-android
++
++TOOLCHAIN=$NDK/toolchains/$ABI-$TOOLCHAIN_VER/prebuilt/$HOST/bin
++export CC="$CWD/cc_shim.py $TOOLCHAIN/$CMD_PREFIX-gcc"
++export AR=$TOOLCHAIN/$CMD_PREFIX-ar
++export RANLIB=$TOOLCHAIN/$CMD_PREFIX-ranlib
++
++ANDROID_SYSROOT=$NDK/platforms/android-$ANDROID_VER/$PLATFORM_ARCH
++export CFLAGS="--sysroot=$ANDROID_SYSROOT $COMPILER_FLAG -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-all -fPIE -Wa,--noexecstack -Wformat -Wformat-security"
++export LDFLAGS="--sysroot=$ANDROID_SYSROOT $LINKER_FLAG -pie -Wl,-z,relro,-z,now"
++
++$CWD/configure --host=$ABI --without-ads --without-ldap --without-acl-support --without-ad-dc --cross-compile --cross-answers=build_answers --prefix=$CWD/out
+diff --git a/install.sh b/install.sh
+new file mode 100755
+index 0000000..d6cb17a
+--- /dev/null
++++ b/install.sh
+@@ -0,0 +1,16 @@
++#!/bin/bash
++
++if [[ $1 == '' ]]; then
++  echo "Usage: $0 <install_location>"
++  exit 1
++fi
++
++DEST_DIR=$1
++mkdir -p $DEST_DIR
++find bin/default/ -name *.so -exec \
++  cp -vuni '{}' "$DEST_DIR" ";"
++
++if [ ! -d $DEST_DIR/includes ]; then
++  mkdir $DEST_DIR/includes
++fi
++cp -r bin/default/include/public/* $DEST_DIR/includes
+diff --git a/lib/param/loadparm.h b/lib/param/loadparm.h
+index aa256c1..ea760ff 100644
+--- a/lib/param/loadparm.h
++++ b/lib/param/loadparm.h
+@@ -31,6 +31,7 @@
+ #define _LOADPARM_H
+ 
+ #include <talloc.h>
++#include "system/time.h"
+ 
+ struct parmlist_entry {
+ 	struct parmlist_entry *prev, *next;
+diff --git a/lib/replace/getifaddrs.c b/lib/replace/getifaddrs.c
+index c2d20f8..c93e46f 100644
+--- a/lib/replace/getifaddrs.c
++++ b/lib/replace/getifaddrs.c
+@@ -44,6 +44,7 @@
+ #define _FOUND_IFACE_ANY
+ #else
+ 
++#ifndef __ANDROID__
+ void rep_freeifaddrs(struct ifaddrs *ifp)
+ {
+ 	if (ifp != NULL) {
+@@ -55,6 +56,7 @@ void rep_freeifaddrs(struct ifaddrs *ifp)
+ 		free(ifp);
+ 	}
+ }
++#endif // __ANDROID__
+ 
+ static struct sockaddr *sockaddr_dup(struct sockaddr *sa)
+ {
+@@ -374,6 +376,12 @@ int rep_getifaddrs(struct ifaddrs **ifap)
+ 
+ #define _FOUND_IFACE_ANY
+ #endif /* HAVE_IFACE_AIX */
++
++#ifdef __ANDROID__
++#include "netlink_ifaddrs.c"
++#define _FOUND_IFACE_ANY
++#endif /* __ANDROID__ */
++
+ #ifndef _FOUND_IFACE_ANY
+ int rep_getifaddrs(struct ifaddrs **ifap)
+ {
+diff --git a/lib/replace/netlink_ifaddrs.c b/lib/replace/netlink_ifaddrs.c
+new file mode 100644
+index 0000000..55a5f1e
+--- /dev/null
++++ b/lib/replace/netlink_ifaddrs.c
+@@ -0,0 +1,272 @@
++#include "system/network.h"
++
++#include <errno.h>
++#include <linux/if_packet.h>
++#include <net/if.h>
++#include <netinet/in.h>
++#include <linux/netlink.h>
++#include <linux/rtnetlink.h>
++#include <sys/socket.h>
++#include <stdlib.h>
++
++#define MAX_SIZE 8192
++char *__netlink_data_;
++
++struct ifaddrs_container {
++  // This needs to be the first because we use this struct as a ifaddrs struct.
++  struct ifaddrs ifa;
++
++  int idx;
++
++  // Storage for pointers in ifa
++  struct sockaddr_storage addr;
++  struct sockaddr_storage netmask;
++  struct sockaddr_storage dstaddr;
++  char name[IFNAMSIZ + 1];
++};
++
++static void init(struct ifaddrs_container *ifa, struct ifaddrs_container** ifap) {
++  memset(ifa, 0, sizeof(*ifa));
++
++  ifa->ifa.ifa_next = (struct ifaddrs*)(*ifap);
++  *ifap = ifa;
++}
++
++static uint8_t* addr_bytes(int family, struct sockaddr_storage *ss) {
++  switch (family) {
++    case AF_INET: {
++      struct sockaddr_in *ss4 = (struct sockaddr_in *)ss;
++      return (uint8_t*) (&ss4->sin_addr);
++    }
++    case AF_INET6: {
++      struct sockaddr_in6 *ss6 = (struct sockaddr_in6 *)ss;
++      return (uint8_t*) (&ss6->sin6_addr);
++    }
++    case AF_PACKET: {
++      struct sockaddr_ll* sll = (struct sockaddr_ll*)ss;
++      return (uint8_t*) (&sll->sll_addr);
++    }
++    default:
++      return NULL;
++  }
++}
++
++static struct sockaddr* copy_addr(int family, const void* data, size_t byteCount, struct sockaddr_storage *ss, int idx) {
++  ss->ss_family = family;
++  memcpy(addr_bytes(family, ss), data, byteCount);
++
++  if (family == AF_INET6 && (IN6_IS_ADDR_LINKLOCAL((struct in6_addr*)data) || IN6_IS_ADDR_MC_LINKLOCAL((struct in6_addr*)data))) {
++    struct sockaddr_in6* ss6 = (struct sockaddr_in6*)ss;
++    ss6->sin6_scope_id = idx;
++  }
++
++  return (struct sockaddr*)ss;
++}
++
++static void set_addr(struct ifaddrs_container *ifa, int family, const void *data, size_t byteCount) {
++  if (ifa->ifa.ifa_addr = NULL) {
++    // Assume this is IFA_LOCAL, if not set_local_addr will fix it.
++    ifa->ifa.ifa_addr = copy_addr(family, data, byteCount, &ifa->addr, ifa->idx);
++  } else {
++    // We already have a IFA_LOCAL, this should be a destination address.
++    ifa->ifa.ifa_dstaddr = copy_addr(family, data, byteCount, &ifa->dstaddr, ifa->idx);
++  }
++}
++
++static void set_local_addr(struct ifaddrs_container *ifa, int family, const void *data, size_t byteCount) {
++  // For P2P interface IFA_ADDRESS is destination and local address is supplied
++  // in IFA_LOCAL attribute.
++  if (ifa->ifa.ifa_addr != NULL) {
++    ifa->ifa.ifa_dstaddr = (struct sockaddr*)memcpy(&ifa->dstaddr, &ifa->addr, sizeof(ifa->addr));
++  }
++
++  ifa->ifa.ifa_addr = copy_addr(family, data, byteCount, &ifa->addr, ifa->idx);
++}
++
++static void set_netmask(struct ifaddrs_container *ifa, int family, size_t prefix_len) {
++  ifa->netmask.ss_family = family;
++  uint8_t *dst = addr_bytes(family, &ifa->netmask);
++  memset(dst, 0xff, prefix_len / 8);
++  if ((prefix_len % 8) != 0) {
++    dst[prefix_len / 8] = (0xff << (8 - (prefix_len % 8)));
++  }
++  ifa->ifa.ifa_netmask = (struct sockaddr*)(&ifa->netmask);
++}
++
++static void set_packet_attr(struct ifaddrs_container *ifa, int ifindex, unsigned short hatype, unsigned char halen) {
++  struct sockaddr_ll *sll = (struct sockaddr_ll *)(&ifa->addr);
++  sll->sll_ifindex = ifindex;
++  sll->sll_hatype = hatype;
++  sll->sll_halen = halen;
++}
++
++static int send_request(int socket, int type) {
++  struct {
++    struct nlmsghdr hdr;
++    struct rtgenmsg msg;
++  } request;
++  memset(&request, 0, sizeof(request));
++  request.hdr.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST;
++  request.hdr.nlmsg_type = type;
++  request.hdr.nlmsg_len = sizeof(request);
++  request.msg.rtgen_family = AF_UNSPEC;
++
++  int result = send(socket, &request, sizeof(request), 0);
++  return result == sizeof(request) ? 0 : -1;
++}
++
++static int read_response(int socket, struct ifaddrs_container **ifap, int (*callback)(struct ifaddrs_container**, struct nlmsghdr*)) {
++  if (!__netlink_data_) {
++    return -1;
++  }
++
++  ssize_t bytes_read;
++  while ((bytes_read = recv(socket, __netlink_data_, MAX_SIZE, 0)) > 0) {
++    struct nlmsghdr *hdr = (struct nlmsghdr *)__netlink_data_;
++    for (; NLMSG_OK(hdr, (size_t) bytes_read); hdr = NLMSG_NEXT(hdr, bytes_read)) {
++      switch (hdr->nlmsg_type) {
++        case NLMSG_DONE:
++          return 0;
++        case NLMSG_ERROR: {
++          struct nlmsgerr *err = (struct nlmsgerr *)NLMSG_DATA(hdr);
++          errno = (hdr->nlmsg_len >= NLMSG_LENGTH(sizeof(struct nlmsgerr))) ? -err->error : EIO;
++          return -1;
++        }
++        default:
++          if (callback(ifap, hdr)) {
++            return -1;
++          }
++      }
++    }
++  }
++
++  // Recv fails before we see NLMSG_OK.
++  return -1;
++}
++
++static int __newlink_callback(struct ifaddrs_container** ifap, struct nlmsghdr* hdr) {
++  if (hdr->nlmsg_type != RTM_NEWLINK) {
++    return -1;
++  }
++
++  struct ifinfomsg* ifi = (struct ifinfomsg *)NLMSG_DATA(hdr);
++  struct ifaddrs_container *addr = (struct ifaddrs_container *)malloc(sizeof(struct ifaddrs_container));
++  init(addr, ifap);
++  addr->idx = ifi->ifi_index;
++  addr->ifa.ifa_flags = ifi->ifi_flags;
++
++  struct rtattr *rta = IFLA_RTA(ifi);
++  size_t rta_len = IFLA_PAYLOAD(hdr);
++  for (; RTA_OK(rta, rta_len); rta = RTA_NEXT(rta, rta_len)) {
++    switch (rta->rta_type) {
++      case IFLA_ADDRESS:
++        if (RTA_PAYLOAD(rta) < sizeof(addr->addr)) {
++          set_addr(addr, AF_PACKET, RTA_DATA(rta), RTA_PAYLOAD(rta));
++          set_packet_attr(addr, ifi->ifi_index, ifi->ifi_type, RTA_PAYLOAD(rta));
++        }
++        break;
++      case IFLA_BROADCAST:
++        if (RTA_PAYLOAD(rta) < sizeof(addr->dstaddr)) {
++          set_packet_attr(addr, ifi->ifi_index, ifi->ifi_type, RTA_PAYLOAD(rta));
++        }
++        break;
++      case IFLA_IFNAME:
++        if (RTA_PAYLOAD(rta) < sizeof(addr->name)) {
++          memcpy(addr->name, RTA_DATA(rta), RTA_PAYLOAD(rta));
++          addr->ifa.ifa_name = addr->name;
++        }
++        break;
++      default:
++        break;
++    }
++  }
++
++  return 0;
++}
++
++static int __newaddr_callback(struct ifaddrs_container** ifap, struct nlmsghdr* hdr) {
++  if (hdr->nlmsg_type != RTM_NEWADDR) {
++    return -1;
++  }
++
++  struct ifaddrmsg *msg = (struct ifaddrmsg*)NLMSG_DATA(hdr);
++  const struct ifaddrs_container *addr = (const struct ifaddrs_container *)(*ifap);
++  while (addr != NULL && addr->idx != (int)msg->ifa_index) {
++    addr = (const struct ifaddrs_container *)addr->ifa.ifa_next;
++  }
++  if (addr == NULL) {
++    // Unknown interface... Ignore it and treat it as successful.
++    return 0;
++  }
++
++  // Copy whatever we know about the interface.
++  struct ifaddrs_container *new_addr = (struct ifaddrs_container *)malloc(sizeof(struct ifaddrs_container));
++  init(new_addr, ifap);
++  strcpy(new_addr->name, addr->name);
++  new_addr->ifa.ifa_name = new_addr->name;
++  new_addr->ifa.ifa_flags = addr->ifa.ifa_flags;
++  new_addr->idx = addr->idx;
++
++  struct rtattr *rta = IFA_RTA(msg);
++  size_t rta_len = IFA_PAYLOAD(hdr);
++  for (; RTA_OK(rta, rta_len); rta = RTA_NEXT(rta, rta_len)) {
++    switch (rta->rta_type) {
++      case IFA_ADDRESS:
++        if (msg->ifa_family == AF_INET || msg->ifa_family == AF_INET6) {
++          set_addr(new_addr, msg->ifa_family, RTA_DATA(rta), RTA_PAYLOAD(rta));
++          set_netmask(new_addr, msg->ifa_family, msg->ifa_prefixlen);
++        }
++        break;
++      case IFA_LOCAL:
++        if (msg->ifa_family == AF_INET || msg->ifa_family == AF_INET6) {
++          set_local_addr(new_addr, msg->ifa_family, RTA_DATA(rta), RTA_PAYLOAD(rta));
++        }
++        break;
++      default:
++        break;
++    }
++  }
++
++  return 0;
++}
++
++int rep_getifaddrs(struct ifaddrs **ifap) {
++  *ifap = NULL;
++
++  __netlink_data_ = (char *) malloc(MAX_SIZE);
++  if (!__netlink_data_) {
++    errno = ENOMEM;
++    return -1;
++  }
++
++  int fd = socket(PF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE);
++  if (fd < 0) {
++    errno = EIO;
++    return -1;
++  }
++
++  int result = send_request(fd, RTM_GETLINK) || read_response(fd, (struct ifaddrs_container**)ifap, __newlink_callback) ||
++      send_request(fd, RTM_GETADDR) || read_response(fd, (struct ifaddrs_container**)ifap, __newaddr_callback);
++
++  close(fd);
++
++  free(__netlink_data_);
++  __netlink_data_ = NULL;
++
++  if (result) {
++    freeifaddrs(*ifap);
++    *ifap = NULL;
++    return -1;
++  }
++
++  return 0;
++}
++
++void rep_freeifaddrs(struct ifaddrs *ifap) {
++  while (ifap != NULL) {
++    struct ifaddrs *cur = ifap;
++    ifap = ifap->ifa_next;
++    free(cur);
++  }
++}
++
+diff --git a/lib/replace/replace.c b/lib/replace/replace.c
+index b5d7f11..e877ac9 100644
+--- a/lib/replace/replace.c
++++ b/lib/replace/replace.c
+@@ -924,3 +924,17 @@ void rep_setproctitle(const char *fmt, ...)
+ {
+ }
+ #endif
++
++#ifndef HAVE_SWAB
++void rep_swab(const void *from, void *to, ssize_t n) {
++  if (n <= 0)
++    return;
++
++  ssize_t i;
++  n >>= 1;
++  for (i = 0; i < n; ++i) {
++    uint16_t src = *((uint16_t*)from+i);
++    *((uint16_t*)to+i) = (((src & 0x00ffU) << 8) | ((src & 0xff00U) >> 8));
++  }
++}
++#endif /* HAVE_SWAB */
+diff --git a/lib/replace/replace.h b/lib/replace/replace.h
+index c69a069..fd71b9c 100644
+--- a/lib/replace/replace.h
++++ b/lib/replace/replace.h
+@@ -914,6 +914,11 @@ int usleep(useconds_t);
+ void rep_setproctitle(const char *fmt, ...) PRINTF_ATTRIBUTE(1, 2);
+ #endif
+ 
++#ifndef HAVE_SWAB
++#define swab rep_swab
++void rep_swab(const void *from, void *to, ssize_t n);
++#endif
++
+ bool nss_wrapper_enabled(void);
+ bool nss_wrapper_hosts_enabled(void);
+ bool socket_wrapper_enabled(void);
+diff --git a/lib/replace/wscript b/lib/replace/wscript
+index 145300d..c10fea8 100644
+--- a/lib/replace/wscript
++++ b/lib/replace/wscript
+@@ -249,9 +249,11 @@ def configure(conf):
+     conf.CHECK_FUNCS('prctl dirname basename')
+ 
+     # libbsd on some platforms provides strlcpy and strlcat
+-    if not conf.CHECK_FUNCS('strlcpy strlcat'):
+-        conf.CHECK_FUNCS_IN('strlcpy strlcat', 'bsd', headers='bsd/string.h',
+-                checklibc=True)
++    # Android provides strlcpy and strlcat but the build host doesn't. Comment
++    # out these checks to compile asn1_compiler and compile_et.
++    #if not conf.CHECK_FUNCS('strlcpy strlcat'):
++    #    conf.CHECK_FUNCS_IN('strlcpy strlcat', 'bsd', headers='bsd/string.h',
++    #            checklibc=True)
+     if not conf.CHECK_FUNCS('getpeereid'):
+         conf.CHECK_FUNCS_IN('getpeereid', 'bsd', headers='sys/types.h bsd/unistd.h')
+     if not conf.CHECK_FUNCS_IN('setproctitle', 'setproctitle', headers='setproctitle.h'):
+@@ -406,8 +408,10 @@ removeea setea
+ 
+     conf.CHECK_FUNCS_IN('pthread_create', 'pthread', checklibc=True, headers='pthread.h')
+ 
+-    PTHREAD_CFLAGS='error'
+-    PTHREAD_LDFLAGS='error'
++    # Android doesn't have pthread library so '-lpthread' will cause build
++    # failure. Android provides limited pthread support via libc and bionic.
++    PTHREAD_CFLAGS=''
++    PTHREAD_LDFLAGS=''
+ 
+     if PTHREAD_LDFLAGS == 'error':
+         if conf.CHECK_FUNCS_IN('pthread_attr_init', 'pthread'):
+@@ -599,8 +603,7 @@ removeea setea
+                     exit(0);
+                     ''',
+                     define='HAVE_SECURE_MKSTEMP',
+-                    execute=True,
+-                    mandatory=True) # lets see if we get a mandatory failure for this one
++                    execute=True) # lets see if we get a mandatory failure for this one
+ 
+     # look for a method of finding the list of network interfaces
+     for method in ['HAVE_IFACE_GETIFADDRS', 'HAVE_IFACE_AIX', 'HAVE_IFACE_IFCONF', 'HAVE_IFACE_IFREQ']:
+diff --git a/lib/socket/interfaces.c b/lib/socket/interfaces.c
+index dacd118..a6787cf 100644
+--- a/lib/socket/interfaces.c
++++ b/lib/socket/interfaces.c
+@@ -126,6 +126,10 @@ void make_net(struct sockaddr_storage *pss_out,
+ }
+ 
+ #ifdef HAVE_ETHTOOL
++inline uint32_t ethtool_cmd_speed(const struct ethtool_cmd *ecmd) {
++  return (ecmd->speed_hi << 16) | ecmd->speed;
++}
++
+ static void query_iface_speed_from_name(const char *name, uint64_t *speed)
+ {
+ 	int ret = 0;
+diff --git a/lib/util/util_pw.c b/lib/util/util_pw.c
+index dae3a69..2fbf11d 100644
+--- a/lib/util/util_pw.c
++++ b/lib/util/util_pw.c
+@@ -36,7 +36,6 @@ struct passwd *tcopy_passwd(TALLOC_CTX *mem_ctx,
+ 
+ 	len += strlen(from->pw_name)+1;
+ 	len += strlen(from->pw_passwd)+1;
+-	len += strlen(from->pw_gecos)+1;
+ 	len += strlen(from->pw_dir)+1;
+ 	len += strlen(from->pw_shell)+1;
+ 
+@@ -50,7 +49,6 @@ struct passwd *tcopy_passwd(TALLOC_CTX *mem_ctx,
+ 	ret->pw_passwd = talloc_strdup(ret, from->pw_passwd);
+ 	ret->pw_uid = from->pw_uid;
+ 	ret->pw_gid = from->pw_gid;
+-	ret->pw_gecos = talloc_strdup(ret, from->pw_gecos);
+ 	ret->pw_dir = talloc_strdup(ret, from->pw_dir);
+ 	ret->pw_shell = talloc_strdup(ret, from->pw_shell);
+ 
+diff --git a/librpc/ndr/util.c b/librpc/ndr/util.c
+index b2df28d..dc0bd95 100644
+--- a/librpc/ndr/util.c
++++ b/librpc/ndr/util.c
+@@ -20,8 +20,8 @@
+ */
+ 
+ #include "includes.h"
+-#include "../librpc/ndr/libndr.h"
+ #include "system/network.h"
++#include "../librpc/ndr/libndr.h"
+ #include "lib/util/util_net.h"
+ 
+ _PUBLIC_ void ndr_print_sockaddr_storage(struct ndr_print *ndr, const char *name, const struct sockaddr_storage *ss)
+diff --git a/nsswitch/libwbclient/wbc_pwd.c b/nsswitch/libwbclient/wbc_pwd.c
+index 805ab63..8484194 100644
+--- a/nsswitch/libwbclient/wbc_pwd.c
++++ b/nsswitch/libwbclient/wbc_pwd.c
+@@ -46,7 +46,6 @@ static void wbcPasswdDestructor(void *ptr)
+ 	struct passwd *pw = (struct passwd *)ptr;
+ 	free(pw->pw_name);
+ 	free(pw->pw_passwd);
+-	free(pw->pw_gecos);
+ 	free(pw->pw_shell);
+ 	free(pw->pw_dir);
+ }
+@@ -68,10 +67,6 @@ static struct passwd *copy_passwd_entry(struct winbindd_pw *p)
+ 	if (pw->pw_passwd == NULL) {
+ 		goto fail;
+ 	}
+-	pw->pw_gecos = strdup(p->pw_gecos);
+-	if (pw->pw_gecos == NULL) {
+-		goto fail;
+-	}
+ 	pw->pw_shell = strdup(p->pw_shell);
+ 	if (pw->pw_shell == NULL) {
+ 		goto fail;
+diff --git a/nsswitch/libwbclient/wbc_sid.c b/nsswitch/libwbclient/wbc_sid.c
+index cc71b9e..c695f46 100644
+--- a/nsswitch/libwbclient/wbc_sid.c
++++ b/nsswitch/libwbclient/wbc_sid.c
+@@ -1040,7 +1040,7 @@ wbcErr wbcCtxGetDisplayName(struct wbcContext *ctx,
+ 
+ 		wbcFreeMemory(name);
+ 
+-		name = wbcStrDup(pwd->pw_gecos);
++		name = wbcStrDup(pwd->pw_name);
+ 		wbcFreeMemory(pwd);
+ 		BAIL_ON_PTR_ERROR(name, wbc_status);
+ 	}
+diff --git a/source3/lib/dumpcore.c b/source3/lib/dumpcore.c
+index c72aa88..5bee67a 100644
+--- a/source3/lib/dumpcore.c
++++ b/source3/lib/dumpcore.c
+@@ -303,7 +303,7 @@ void dump_core_setup(const char *progname, const char *log_file)
+ 		DEBUG(0,("dumping core in %s\n", corepath));
+ 	}
+ 
+-	umask(~(0700));
++	umask(077);
+ 	dbgflush();
+ 
+ #if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
+diff --git a/source4/heimdal_build/wscript_build b/source4/heimdal_build/wscript_build
+index c733b8f..72f572f 100644
+--- a/source4/heimdal_build/wscript_build
++++ b/source4/heimdal_build/wscript_build
+@@ -250,7 +250,8 @@ def HEIMDAL_LIBRARY(libname, source, deps, vnum, version_script, includes=''):
+         target          = bundled_name,
+         samba_deps      = deps,
+         samba_includes  = includes,
+-        vnum            = vnum,
++        vnum            = None,
++        soname          = 'lib' + bundled_name + '.so',
+         install_path    = None,
+         name            = libname,
+         ldflags         = ldflags,
+diff --git a/source4/heimdal_build/wscript_configure b/source4/heimdal_build/wscript_configure
+index 67ac34b..aa9d6da 100755
+--- a/source4/heimdal_build/wscript_configure
++++ b/source4/heimdal_build/wscript_configure
+@@ -16,14 +16,17 @@ conf.CHECK_TYPE('u_int32_t', 'uint32_t')
+ conf.CHECK_HEADERS('err.h')
+ 
+ conf.CHECK_HEADERS('ifaddrs.h')
++
++# Remove checks for netinet.in6, get/setprogname because build host doesn't
++# provide them but Android does. These files are used to compile asn1 compiler
++# and compile_et as compile tools so using Android config here is wrong.
+ conf.CHECK_HEADERS('''crypt.h errno.h inttypes.h netdb.h signal.h sys/bswap.h
+                   sys/file.h sys/stropts.h sys/timeb.h sys/times.h sys/uio.h sys/un.h
+-              sys/utsname.h time.h timezone.h ttyname.h netinet/in.h
+-              netinet/in6.h netinet6/in6.h''')
++              sys/utsname.h time.h timezone.h ttyname.h netinet/in.h netinet6/in6.h''')
+ 
+ conf.CHECK_HEADERS('curses.h term.h termcap.h', together=True)
+ 
+-conf.CHECK_FUNCS('''atexit cgetent getprogname setprogname gethostname
++conf.CHECK_FUNCS('''atexit cgetent gethostname
+                     putenv rcmd readv sendmsg setitimer strlwr strncasecmp
+             strptime strsep strsep_copy    strtok_r strupr swab umask uname unsetenv
+             closefrom err warn errx warnx flock writev''')
+diff --git a/source4/lib/socket/socket.c b/source4/lib/socket/socket.c
+index 42eb53a..1f12326 100644
+--- a/source4/lib/socket/socket.c
++++ b/source4/lib/socket/socket.c
+@@ -20,9 +20,9 @@
+ */
+ 
+ #include "includes.h"
++#include "system/network.h"
+ #include "lib/socket/socket.h"
+ #include "system/filesys.h"
+-#include "system/network.h"
+ #include "param/param.h"
+ #include "../lib/tsocket/tsocket.h"
+ #include "lib/util/util_net.h"
+diff --git a/source4/lib/tls/wscript b/source4/lib/tls/wscript
+index ecde360..006fb25 100644
+--- a/source4/lib/tls/wscript
++++ b/source4/lib/tls/wscript
+@@ -28,21 +28,7 @@ def configure(conf):
+                        mandatory=True)
+         conf.DEFINE('HAVE_GNUTLS_3_4_7', 1)
+         conf.DEFINE('HAVE_GNUTLS3', 1)
+-    else:
+-        if conf.CHECK_CFG(package='gnutls',
+-                          args='"gnutls >= 3.4.7" --cflags --libs',
+-                          msg='Checking for gnutls >= 3.4.7',
+-                          mandatory=False):
+-            conf.DEFINE('HAVE_GNUTLS_3_4_7', 1)
+-            conf.DEFINE('HAVE_GNUTLS3', 1)
+-        elif conf.CHECK_CFG(package='gnutls',
+-                            args='"gnutls >= 3.0.0" --cflags --libs',
+-                            msg='Checking for gnutls >= 3.0.0s', mandatory=False):
+-            conf.DEFINE('HAVE_GNUTLS3', 1)
+-        else:
+-            conf.CHECK_CFG(package='gnutls',
+-                           args='"gnutls >= 1.4.0 gnutls != 2.2.4 gnutls != 2.8.0 gnutls != 2.8.1" --cflags --libs',
+-                           msg='Checking for gnutls >= 1.4.0 and broken versions', mandatory=False)
++    # Android doesn't have GnuTLS, but it's checking whether the build machine has GnuTLS so the result can be wrong.
+ 
+     if 'HAVE_GNUTLS' in conf.env:
+         conf.DEFINE('ENABLE_GNUTLS', 1)
+diff --git a/source4/libnet/wscript_build b/source4/libnet/wscript_build
+index 1274a82..c928736 100644
+--- a/source4/libnet/wscript_build
++++ b/source4/libnet/wscript_build
+@@ -3,7 +3,7 @@
+ bld.SAMBA_LIBRARY('samba-net',
+ 	source='libnet.c libnet_passwd.c libnet_time.c libnet_rpc.c libnet_join.c libnet_site.c libnet_become_dc.c libnet_unbecome_dc.c libnet_vampire.c libnet_samdump.c libnet_samsync_ldb.c libnet_user.c libnet_group.c libnet_share.c libnet_lookup.c libnet_domain.c userinfo.c groupinfo.c userman.c groupman.c prereq_domain.c libnet_samsync.c',
+ 	autoproto='libnet_proto.h',
+-	public_deps='samba-credentials dcerpc dcerpc-samr RPC_NDR_LSA RPC_NDR_SRVSVC RPC_NDR_DRSUAPI cli_composite LIBCLI_RESOLVE LIBCLI_FINDDCS cli_cldap LIBCLI_FINDDCS gensec_schannel LIBCLI_AUTH ndr smbpasswdparser PROVISION LIBCLI_SAMSYNC LIBTSOCKET',
++	public_deps='samba-credentials dcerpc dcerpc-samr RPC_NDR_LSA RPC_NDR_SRVSVC RPC_NDR_DRSUAPI cli_composite LIBCLI_RESOLVE LIBCLI_FINDDCS cli_cldap LIBCLI_FINDDCS gensec_schannel LIBCLI_AUTH ndr smbpasswdparser LIBCLI_SAMSYNC LIBTSOCKET',
+ 	private_library=True
+ 	)
+ 
+diff --git a/source4/torture/local/wscript_build b/source4/torture/local/wscript_build
+index 3a12b6b..c8945dd 100644
+--- a/source4/torture/local/wscript_build
++++ b/source4/torture/local/wscript_build
+@@ -24,7 +24,7 @@ TORTURE_LOCAL_SOURCE = '''../../../lib/util/charset/tests/iconv.c
+ 	nss_tests.c
+ 	fsrvp_state.c'''
+ 
+-TORTURE_LOCAL_DEPS = 'RPC_NDR_ECHO TDR LIBCLI_SMB MESSAGING iconv POPT_CREDENTIALS TORTURE_AUTH TORTURE_UTIL TORTURE_NDR TORTURE_LIBCRYPTO share torture_registry PROVISION ldb samdb replace-test RPC_FSS_STATE'
++TORTURE_LOCAL_DEPS = 'RPC_NDR_ECHO TDR LIBCLI_SMB MESSAGING iconv POPT_CREDENTIALS TORTURE_AUTH TORTURE_UTIL TORTURE_NDR TORTURE_LIBCRYPTO share torture_registry ldb samdb replace-test RPC_FSS_STATE'
+ 
+ bld.SAMBA_MODULE('TORTURE_LOCAL',
+ 	source=TORTURE_LOCAL_SOURCE,
+diff --git a/source4/torture/wscript_build b/source4/torture/wscript_build
+index ff79c3d..a936395 100755
+--- a/source4/torture/wscript_build
++++ b/source4/torture/wscript_build
+@@ -256,7 +256,7 @@ bld.SAMBA_MODULE('TORTURE_NET',
+ 	autoproto='libnet/proto.h',
+ 	subsystem='smbtorture',
+ 	init_function='torture_net_init',
+-	deps='samba-net popt POPT_CREDENTIALS torture_rpc PROVISION',
++	deps='samba-net popt POPT_CREDENTIALS torture_rpc',
+ 	internal_module=True
+ 	)
+ 
+@@ -292,7 +292,7 @@ bld.SAMBA_BINARY('smbtorture',
+                  manpages='man/smbtorture.1',
+                  private_headers='smbtorture.h',
+                  deps='torturemain torture popt POPT_SAMBA POPT_CREDENTIALS dcerpc LIBCLI_SMB SMBREADLINE ' + TORTURE_MODULES,
+-                 pyembed=True
++                 #pyembed=True
+                  )
+ 
+ bld.SAMBA_BINARY('gentest',
+diff --git a/wscript b/wscript
+index 77aacef..d9af16a 100644
+--- a/wscript
++++ b/wscript
+@@ -103,8 +103,8 @@ def configure(conf):
+     conf.SAMBA_CHECK_PERL(mandatory=True)
+     conf.find_program('xsltproc', var='XSLTPROC')
+ 
+-    conf.SAMBA_CHECK_PYTHON(mandatory=True, version=(2, 6, 0))
+-    conf.SAMBA_CHECK_PYTHON_HEADERS(mandatory=True)
++    conf.SAMBA_CHECK_PYTHON(mandatory=False, version=(2, 6, 0))
++    conf.SAMBA_CHECK_PYTHON_HEADERS(mandatory=False)
+ 
+     if sys.platform == 'darwin' and not conf.env['HAVE_ENVIRON_DECL']:
+         # Mac OSX needs to have this and it's also needed that the python is compiled with this

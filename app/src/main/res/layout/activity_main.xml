@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright 2017 Google Inc.
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
+  android:id="@+id/activity_main"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:paddingLeft="@dimen/activity_horizontal_margin"
+  android:paddingRight="@dimen/activity_horizontal_margin"
+  android:paddingTop="@dimen/activity_vertical_margin"
+  android:paddingBottom="@dimen/activity_vertical_margin"
+  android:orientation="vertical"
+  tools:context=".mount.MountServerActivity">
+
+
+  <ScrollView
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1">
+
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical">
+
+      <EditText
+        android:id="@+id/share_path"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/clickable_height"
+        android:minLines="1"
+        android:maxLines="1"
+        android:inputType="textUri"
+        android:hint="@string/share_path"/>
+
+      <CheckBox
+        android:id="@+id/needs_password"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/clickable_height"
+        android:layout_below="@id/share_path"
+        android:text="@string/needs_password"/>
+
+      <LinearLayout
+        android:id="@+id/password_hide_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:orientation="vertical">
+        <EditText
+          android:id="@+id/domain"
+          android:layout_width="match_parent"
+          android:layout_height="@dimen/clickable_height"
+          android:minLines="1"
+          android:maxLines="1"
+          android:inputType="text"
+          android:hint="@string/domain"/>
+
+        <EditText
+          android:id="@+id/username"
+          android:layout_width="match_parent"
+          android:layout_height="@dimen/clickable_height"
+          android:minLines="1"
+          android:maxLines="1"
+          android:inputType="text"
+          android:hint="@string/username"/>
+
+        <EditText
+          android:id="@+id/password"
+          android:layout_width="match_parent"
+          android:layout_height="@dimen/clickable_height"
+          android:minLines="1"
+          android:maxLines="1"
+          android:inputType="textPassword"
+          android:fontFamily="sans-serif"
+          android:hint="@string/password"/>
+
+      </LinearLayout>
+    </LinearLayout>
+  </ScrollView>
+
+  <RelativeLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    <TextView
+      android:id="@+id/gplv3_link"
+      android:layout_width="wrap_content"
+      android:layout_height="@dimen/clickable_height"
+      android:layout_alignParentStart="true"
+      android:gravity="bottom"
+      android:paddingBottom="8dp"
+      android:maxLines="1"
+      android:textSize="15sp"
+      android:text="@string/gplv3_link" />
+
+    <Button
+      android:id="@+id/mount"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_alignParentEnd="true"
+      android:textColor="@android:color/white"
+      android:backgroundTint="@color/colorPrimary"
+      android:text="@string/mount"/>
+
+    <Button
+        android:id="@+id/cancel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toStartOf="@id/mount"
+        android:text="@string/cancel"/>
+
+  </RelativeLayout>
+</LinearLayout>
