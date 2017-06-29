@@ -20,8 +20,13 @@ package com.google.android.sambadocumentsprovider.nativefacade;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
+import android.os.ParcelFileDescriptor;
+import android.os.ProxyFileDescriptorCallback;
+import android.os.storage.StorageManager;
 import android.support.annotation.IntDef;
 import android.system.StructStat;
+
+import com.google.android.sambadocumentsprovider.SambaProviderApplication;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import java.io.IOException;
 import java.lang.annotation.Retention;
@@ -46,6 +51,8 @@ class SambaFacadeClient extends BaseClient implements SmbClient {
   private static final String URI = "URI";
   private static final String NEW_URI = "NEW_URI";
   private static final String MODE = "MODE";
+
+  private StorageManager mStorageManager;
 
   SambaFacadeClient(Looper looper, SmbClient clientImpl) {
     mHandler = new SambaServiceHandler(looper, clientImpl);
@@ -140,6 +147,12 @@ class SambaFacadeClient extends BaseClient implements SmbClient {
       enqueue(msg);
       return new SambaFileClient(mHandler.getLooper(), messageValues.getObj());
     }
+  }
+
+  @Override
+  public ParcelFileDescriptor openProxyFile(int mode, ProxyFileDescriptorCallback callback,
+                                            StorageManager storageManager) throws IOException {
+      return storageManager.openProxyFileDescriptor(mode, callback, mHandler);
   }
 
   private static class SambaServiceHandler extends BaseHandler {

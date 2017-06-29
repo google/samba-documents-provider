@@ -17,6 +17,9 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
+import android.os.ParcelFileDescriptor;
+import android.os.ProxyFileDescriptorCallback;
+import android.os.storage.StorageManager;
 import android.system.StructStat;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import java.io.IOException;
@@ -41,4 +44,7 @@ public interface SmbClient {
   void rmdir(String uri) throws IOException;
 
   SmbFile openFile(String uri, String mode) throws IOException;
+
+  ParcelFileDescriptor openProxyFile(int mode, ProxyFileDescriptorCallback callback,
+                                     StorageManager storageManager) throws IOException;
 }
