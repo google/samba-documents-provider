@@ -30,12 +30,15 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
+import android.os.ProxyFileDescriptorCallback;
+import android.os.storage.StorageManager;
 import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
 import android.provider.DocumentsContract.Root;
 import android.provider.DocumentsProvider;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
+import android.system.ErrnoException;
 import android.util.Log;
 import com.google.android.sambadocumentsprovider.R;
 import com.google.android.sambadocumentsprovider.SambaProviderApplication;
@@ -53,8 +56,12 @@ import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.document.LoadDocumentTask;
 import com.google.android.sambadocumentsprovider.document.LoadStatTask;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
+
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -135,6 +142,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   private ByteBufferPool mBufferPool;
   private DocumentCache mCache;
   private TaskManager mTaskManager;
+  private StorageManager mStorageManager;
 
   @Override
   public boolean onCreate() {
@@ -145,6 +153,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     mBufferPool = new ByteBufferPool();
     mShareManager = SambaProviderApplication.getServerManager(context);
     mShareManager.addListener(mShareChangeListener);
+    mStorageManager = (StorageManager) context.getSystemService(Context.STORAGE_SERVICE);
 
     return mClient != null;
   }
@@ -545,32 +554,76 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public ParcelFileDescriptor openDocument(String documentId, String mode,
-      CancellationSignal cancellationSignal) throws FileNotFoundException {
+                                           final CancellationSignal cancellationSignal) throws FileNotFoundException {
     Log.d(TAG, "Opening document " + documentId + " with mode " + mode);
+
     try {
       if (!"r".equals(mode) && !"w".equals(mode)) {
         throw new UnsupportedOperationException("Mode " + mode + " is not supported");
       }
 
       final String uri = toUriString(documentId);
-      ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createReliablePipe();
+
+      ProxyFileDescriptorCallback callback = new ProxyFileDescriptorCallback() {
+        public long onGetSize() throws ErrnoException {
+          Log.d(TAG, "onGetSize");
+          return 500000;
+        }
+
+        public int onRead(long offset, int size, byte[] data) throws ErrnoException {
+          Log.d(TAG, "onRead");
+          try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+            final SmbFile file = mClient.openFile(uri, "r");
+
+            ByteBuffer byteBuffer = mBufferPool.obtainBuffer();
+            byte[] buf = new byte[byteBuffer.capacity()];
+
+            int readSize;
+            while ((cancellationSignal == null || !cancellationSignal.isCanceled())
+                    && (readSize = file.read(byteBuffer)) > 0) {
+              byteBuffer.get(buf, 0, readSize);
+              os.write(buf, 0, readSize);
+              byteBuffer.clear();
+            }
+
+
+            byte[] output = os.toByteArray();
+            for (int i = (int)offset; i < offset + size; i++) {
+              data[i - (int)offset]  = output[i];
+            }
+
+            return Math.min(size, output.length);
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+
+          return 0;
+        }
+
+        public int onWrite(long offset, int size, byte[] data) throws ErrnoException {
+          Log.d(TAG, "onWrite");
+          return 0;
+        }
+
+        public void onFsync() throws ErrnoException {
+          Log.d(TAG, "onFsync");
+        }
+
+        @Override
+        public void onRelease() {
+          Log.d(TAG, "onRelease");
+        }
+      };
+
       switch (mode) {
-        case "r": {
-          final ReadFileTask task = new ReadFileTask(
-              uri, mClient, pipe[1], mBufferPool, cancellationSignal);
-          mTaskManager.runIoTask(task);
-        }
-          return pipe[0];
-        case "w": {
-          final WriteFileTask task = new WriteFileTask(uri, mClient, pipe[0], mBufferPool,
-              cancellationSignal, mWriteFinishedCallback);
-          mTaskManager.runIoTask(task);
-          return pipe[1];
-        }
+        case "r":
+          return mClient.openProxyFile(ParcelFileDescriptor.MODE_READ_ONLY, callback,
+                  mStorageManager);
+        case "w":
+          return mClient.openProxyFile(ParcelFileDescriptor.MODE_WRITE_ONLY, callback,
+                  mStorageManager);
         default:
           // Should never happen.
-          pipe[0].close();
-          pipe[1].close();
           throw new UnsupportedOperationException("Mode " + mode + " is not supported.");
       }
     } catch(FileNotFoundException e) {

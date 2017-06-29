@@ -144,7 +144,7 @@ class SambaFacadeClient extends BaseClient implements SmbClient {
     try (final MessageValues<SambaFile> messageValues = MessageValues.obtain()) {
       final Message msg = obtainMessage(OPEN_FILE, messageValues, uri);
       msg.peekData().putString(MODE, mode);
-      enqueue(msg);
+      mHandler.handleMessage(msg);
       return new SambaFileClient(mHandler.getLooper(), messageValues.getObj());
     }
   }
