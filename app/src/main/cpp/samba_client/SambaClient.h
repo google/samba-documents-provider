@@ -54,6 +54,8 @@ class SambaClient {
 
   ssize_t WriteFile(const int fd, void *buffer, const size_t length);
 
+  off_t SeekFile(const int fd, const off_t offset, const int whence);
+
   int CloseFile(const int fd);
  private:
   ::SMBCCTX *sambaContext = NULL;

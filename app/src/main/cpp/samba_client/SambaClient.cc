@@ -251,6 +251,12 @@ int SambaClient::OpenFile(const char *url, const int flag, const mode_t mode) {
   return fd;
 }
 
+off_t
+SambaClient::SeekFile(const int fd, const off_t offset, const int whence) {
+  LOGV(TAG, "Set offset to %x for file with fd %x", offset, fd);
+  return smbc_lseek(fd, offset, whence);
+}
+
 ssize_t
 SambaClient::ReadFile(const int fd, void *buffer, const size_t maxlen) {
   LOGV(TAG, "Reading max %lu bytes from file with fd %x", maxlen, fd);

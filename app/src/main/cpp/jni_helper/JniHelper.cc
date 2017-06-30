@@ -527,6 +527,19 @@ Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_op
   return fd;
 }
 
+jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek(
+    JNIEnv *env,
+    jobject instance,
+    jlong pointer,
+    jint fd,
+    jint offset,
+    jint whence) {
+  SambaClient::SambaClient *client =
+          reinterpret_cast<SambaClient::SambaClient*>(pointer);
+
+  return client->SeekFile(fd, offset, whence);
+}
+
 jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_read(
     JNIEnv *env,
     jobject instance,

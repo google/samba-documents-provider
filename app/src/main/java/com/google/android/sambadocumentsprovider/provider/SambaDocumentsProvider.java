@@ -39,6 +39,7 @@ import android.provider.DocumentsProvider;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
 import android.system.ErrnoException;
+import android.system.StructStat;
 import android.util.Log;
 import com.google.android.sambadocumentsprovider.R;
 import com.google.android.sambadocumentsprovider.SambaProviderApplication;
@@ -566,31 +567,51 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
       ProxyFileDescriptorCallback callback = new ProxyFileDescriptorCallback() {
         public long onGetSize() throws ErrnoException {
-          Log.d(TAG, "onGetSize");
-          return 500000;
+          try {
+            StructStat stat = mClient.stat(uri, false);
+            Log.d(TAG, "onGetSize: " + stat.st_size);
+            return stat.st_size;
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+
+          return 0;
         }
 
         public int onRead(long offset, int size, byte[] data) throws ErrnoException {
-          Log.d(TAG, "onRead");
+//          size -= offset;
+          Log.d(TAG, "onRead: offset = " + offset + "; size = " + size);
           try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
             final SmbFile file = mClient.openFile(uri, "r");
-
+            long off = file.seek(offset);
+            Log.d(TAG, "" + off);
             ByteBuffer byteBuffer = mBufferPool.obtainBuffer();
             byte[] buf = new byte[byteBuffer.capacity()];
 
             int readSize;
+            int total = 0;
             while ((cancellationSignal == null || !cancellationSignal.isCanceled())
                     && (readSize = file.read(byteBuffer)) > 0) {
+              Log.d(TAG, "Just read: " + readSize);
               byteBuffer.get(buf, 0, readSize);
               os.write(buf, 0, readSize);
               byteBuffer.clear();
+              total += readSize;
+              Log.d(TAG, "Reading: " + total);
+              if (total >= size) {
+                break;
+              }
             }
 
 
             byte[] output = os.toByteArray();
-            for (int i = (int)offset; i < offset + size; i++) {
-              data[i - (int)offset]  = output[i];
+            for (int i = 0; i < size; i++) {
+              data[i]  = output[i];
             }
+
+            file.close();
+
+            Log.d(TAG, "Done reading: " + Math.min(size, output.length));
 
             return Math.min(size, output.length);
           } catch (IOException e) {

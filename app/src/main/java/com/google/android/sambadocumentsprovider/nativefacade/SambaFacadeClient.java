@@ -86,9 +86,17 @@ class SambaFacadeClient extends BaseClient implements SmbClient {
 
   @Override
   public StructStat stat(String uri) throws IOException {
+    return stat(uri, true);
+  }
+
+  public StructStat stat(String uri, boolean shouldQueue) throws IOException {
     try (final MessageValues<StructStat> messageValues = MessageValues.obtain()) {
       final Message msg = obtainMessage(STAT, messageValues, uri);
-      enqueue(msg);
+      if (shouldQueue) {
+        enqueue(msg);
+      } else {
+        mHandler.handleMessage(msg);
+      }
       return messageValues.getObj();
     }
   }

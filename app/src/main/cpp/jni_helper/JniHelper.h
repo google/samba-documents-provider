@@ -19,6 +19,7 @@
 #define SAMBADOCUMENTSPROVIDER_JNI_HELPER_H
 
 #include <jni.h>
+#include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,6 +68,10 @@ JNIEXPORT jint JNICALL
 JNIEXPORT jlong JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_read(
     JNIEnv *env, jobject instance, jlong pointer, jint fd, jobject buffer, jint maxlen);
+
+JNIEXPORT jlong JNICALL
+    Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek(
+    JNIEnv *env, jobject instance, jlong pointer, jint fd, jint offset, jint whence);
 
 JNIEXPORT jlong JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_write(

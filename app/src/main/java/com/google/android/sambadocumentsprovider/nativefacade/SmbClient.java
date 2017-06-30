@@ -31,7 +31,9 @@ public interface SmbClient {
 
   List<DirectoryEntry> readDir(String uri) throws IOException;
 
-  StructStat stat(String uri) throws IOException;
+    StructStat stat(String uri, boolean shouldQueue) throws IOException;
+
+    StructStat stat(String uri) throws IOException;
 
   void createFile(String uri) throws IOException;
 

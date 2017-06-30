@@ -68,6 +68,11 @@ class NativeSambaFacade implements SmbClient {
   }
 
   @Override
+  public StructStat stat(String uri, boolean shouldQueue) throws IOException {
+    return stat(uri);
+  }
+
+  @Override
   public StructStat stat(String uri) throws IOException {
     try {
       checkNativeHandler();

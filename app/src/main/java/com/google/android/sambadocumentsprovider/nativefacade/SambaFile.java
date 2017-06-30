@@ -18,6 +18,8 @@
 package com.google.android.sambadocumentsprovider.nativefacade;
 
 import android.system.ErrnoException;
+import android.util.Log;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -46,6 +48,16 @@ class SambaFile implements SmbFile {
     }
   }
 
+  public long seek(long offset) throws IOException {
+    try {
+      long res = seek(mNativeHandler, mNativeFd, (int) offset, 0);
+      Log.d("SambaFile", "" + offset);
+      return res;
+    } catch (ErrnoException e) {
+      throw new IOException("Failed to move to offset in file. Fd: " + mNativeFd, e);
+    }
+  }
+
   @Override
   public void close() throws IOException {
     try {
@@ -61,6 +73,9 @@ class SambaFile implements SmbFile {
       throws ErrnoException;
 
   private native int write(long handler, int fd, ByteBuffer buffer, int length)
+      throws ErrnoException;
+
+  private native long seek(long handler, int fd, int offset, int whence)
       throws ErrnoException;
 
   private native void close(long handler, int fd) throws ErrnoException;

@@ -17,6 +17,7 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
+import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.IntDef;
@@ -33,6 +34,9 @@ class SambaFileClient extends BaseClient implements SmbFile {
   private static final int READ = 1;
   private static final int WRITE = 2;
   private static final int CLOSE = 3;
+  private static final int SEEK = 4;
+
+  private static final String OFFSET = "offset";
 
   SambaFileClient(Looper looper, SmbFile smbFileImpl) {
     mHandler = new SambaFileHandler(looper, smbFileImpl);
@@ -57,6 +61,20 @@ class SambaFileClient extends BaseClient implements SmbFile {
       enqueue(msg);
       return messageValues.getInt();
     }
+  }
+
+  @Override
+  public long seek(long offset) throws IOException {
+    final MessageValues messageValues = MessageValues.obtain();
+    final Message msg = mHandler.obtainMessage(SEEK, messageValues);
+
+    Bundle data = new Bundle();
+    data.putLong(OFFSET, offset);
+
+    msg.setData(data);
+
+    mHandler.handleMessage(msg);
+    return msg.peekData().getLong(OFFSET);
   }
 
   @Override
@@ -97,6 +115,9 @@ class SambaFileClient extends BaseClient implements SmbFile {
           case CLOSE:
             mSmbFileImpl.close();
             break;
+          case SEEK:
+            long offset = mSmbFileImpl.seek(msg.peekData().getLong(OFFSET));
+            msg.peekData().putLong(OFFSET, offset);
           default:
             throw new UnsupportedOperationException("Unknown operation " + msg.what);
         }
