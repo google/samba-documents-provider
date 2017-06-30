@@ -86,6 +86,8 @@ class SambaFileClient extends BaseClient implements SmbFile {
     }
   }
 
+
+
   private static class SambaFileHandler extends BaseHandler {
 
     private SmbFile mSmbFileImpl;
