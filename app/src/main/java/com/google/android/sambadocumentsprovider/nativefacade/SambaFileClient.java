@@ -40,29 +40,32 @@ class SambaFileClient extends BaseClient implements SmbFile {
 
   @Override
   public int read(ByteBuffer buffer) throws IOException {
-    final MessageValues<ByteBuffer> messageValues = MessageValues.obtain();
-    messageValues.setObj(buffer);
-    final Message msg = mHandler.obtainMessage(READ, messageValues);
-    enqueue(msg);
-    return messageValues.getInt();
+    try(final MessageValues<ByteBuffer> messageValues = MessageValues.obtain()) {
+      messageValues.setObj(buffer);
+      final Message msg = mHandler.obtainMessage(READ, messageValues);
+      enqueue(msg);
+      return messageValues.getInt();
+    }
   }
 
   @Override
   public int write(ByteBuffer buffer, int length) throws IOException {
-    final MessageValues<ByteBuffer> messageValues = MessageValues.obtain();
-    messageValues.setObj(buffer);
-    final Message msg = mHandler.obtainMessage(WRITE, messageValues);
-    msg.arg1 = length;
-    enqueue(msg);
-    return messageValues.getInt();
+    try (final MessageValues<ByteBuffer> messageValues = MessageValues.obtain()) {
+      messageValues.setObj(buffer);
+      final Message msg = mHandler.obtainMessage(WRITE, messageValues);
+      msg.arg1 = length;
+      enqueue(msg);
+      return messageValues.getInt();
+    }
   }
 
   @Override
   public void close() throws IOException {
-    final MessageValues messageValues = MessageValues.obtain();
-    final Message msg = mHandler.obtainMessage(CLOSE, messageValues);
-    enqueue(msg);
-    messageValues.checkException();
+    try (final MessageValues messageValues = MessageValues.obtain()) {
+      final Message msg = mHandler.obtainMessage(CLOSE, messageValues);
+      enqueue(msg);
+      messageValues.checkException();
+    }
   }
 
   private static class SambaFileHandler extends BaseHandler {
