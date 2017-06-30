@@ -21,27 +21,18 @@ import android.os.ParcelFileDescriptor;
 import android.os.ProxyFileDescriptorCallback;
 import android.os.storage.StorageManager;
 import android.system.StructStat;
-import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
+
 import java.io.IOException;
-import java.util.List;
 
-public interface SmbClient {
+/**
+ * Created by rthakohov on 6/30/17.
+ */
 
-  void reset();
+public interface SmbProxyClient extends SmbClient {
+    SmbFile openProxyFile(String uri, String mode) throws IOException;
 
-  List<DirectoryEntry> readDir(String uri) throws IOException;
+    StructStat statProxy(String uri) throws IOException;
 
-  StructStat stat(String uri) throws IOException;
-
-  void createFile(String uri) throws IOException;
-
-  void mkdir(String uri) throws IOException;
-
-  void rename(String uri, String newUri) throws IOException;
-
-  void unlink(String uri) throws IOException;
-
-  void rmdir(String uri) throws IOException;
-
-  SmbFile openFile(String uri, String mode) throws IOException;
+    ParcelFileDescriptor obtainProxyForFile(int mode, ProxyFileDescriptorCallback callback,
+                                            StorageManager storageManager) throws IOException;
 }

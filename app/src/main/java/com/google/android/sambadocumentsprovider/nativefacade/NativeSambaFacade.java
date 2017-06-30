@@ -68,11 +68,6 @@ class NativeSambaFacade implements SmbClient {
   }
 
   @Override
-  public StructStat stat(String uri, boolean shouldQueue) throws IOException {
-    return stat(uri);
-  }
-
-  @Override
   public StructStat stat(String uri) throws IOException {
     try {
       checkNativeHandler();
@@ -140,11 +135,6 @@ class NativeSambaFacade implements SmbClient {
     } catch(ErrnoException e) {
       throw new IOException("Failed to open " + uri, e);
     }
-  }
-
-  @Override
-  public ParcelFileDescriptor openProxyFile(int mode, ProxyFileDescriptorCallback callback, StorageManager storageManager) {
-    throw new UnsupportedOperationException();
   }
 
   private void checkNativeHandler() {

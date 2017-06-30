@@ -31,9 +31,10 @@ import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.sql.Struct;
 import java.util.List;
 
-class SambaFacadeClient extends BaseClient implements SmbClient {
+class SambaFacadeClient extends BaseClient implements SmbProxyClient {
 
   @IntDef({ RESET, READ_DIR, STAT, MKDIR, RENAME, UNLINK, RMDIR, OPEN_FILE })
   @Retention(RetentionPolicy.SOURCE)
@@ -86,17 +87,18 @@ class SambaFacadeClient extends BaseClient implements SmbClient {
 
   @Override
   public StructStat stat(String uri) throws IOException {
-    return stat(uri, true);
-  }
-
-  public StructStat stat(String uri, boolean shouldQueue) throws IOException {
     try (final MessageValues<StructStat> messageValues = MessageValues.obtain()) {
       final Message msg = obtainMessage(STAT, messageValues, uri);
-      if (shouldQueue) {
-        enqueue(msg);
-      } else {
-        mHandler.handleMessage(msg);
-      }
+      enqueue(msg);
+      return messageValues.getObj();
+    }
+  }
+
+  @Override
+  public StructStat statProxy(String uri) throws IOException {
+    try (final MessageValues<StructStat> messageValues = MessageValues.obtain()) {
+      final Message msg = obtainMessage(STAT, messageValues, uri);
+      mHandler.handleMessage(msg);
       return messageValues.getObj();
     }
   }
@@ -150,17 +152,30 @@ class SambaFacadeClient extends BaseClient implements SmbClient {
   @Override
   public SmbFile openFile(String uri, String mode) throws IOException {
     try (final MessageValues<SambaFile> messageValues = MessageValues.obtain()) {
-      final Message msg = obtainMessage(OPEN_FILE, messageValues, uri);
-      msg.peekData().putString(MODE, mode);
-      mHandler.handleMessage(msg);
+      enqueue(obtainMessageForOpenFile(uri, mode, messageValues));
       return new SambaFileClient(mHandler.getLooper(), messageValues.getObj());
     }
   }
 
   @Override
-  public ParcelFileDescriptor openProxyFile(int mode, ProxyFileDescriptorCallback callback,
-                                            StorageManager storageManager) throws IOException {
+  public SmbFile openProxyFile(String uri, String mode) throws IOException {
+    try (final MessageValues<SambaFile> messageValues = MessageValues.obtain()) {
+      mHandler.handleMessage(obtainMessageForOpenFile(uri, mode, messageValues));
+      return new SambaFileClient(mHandler.getLooper(), messageValues.getObj());
+    }
+  }
+
+  @Override
+  public ParcelFileDescriptor obtainProxyForFile(int mode, ProxyFileDescriptorCallback callback,
+                                                 StorageManager storageManager) throws IOException {
       return storageManager.openProxyFileDescriptor(mode, callback, mHandler);
+  }
+
+  private Message obtainMessageForOpenFile(String uri, String mode,
+                                           MessageValues<SambaFile> messageValues) {
+    final Message msg = obtainMessage(OPEN_FILE, messageValues, uri);
+    msg.peekData().putString(MODE, mode);
+    return msg;
   }
 
   private static class SambaServiceHandler extends BaseHandler {

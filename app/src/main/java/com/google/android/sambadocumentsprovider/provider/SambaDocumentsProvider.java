@@ -56,8 +56,8 @@ import com.google.android.sambadocumentsprovider.document.LoadChildrenTask;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.document.LoadDocumentTask;
 import com.google.android.sambadocumentsprovider.document.LoadStatTask;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbProxyClient;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -139,7 +139,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   };
 
   private ShareManager mShareManager;
-  private SmbClient mClient;
+  private SmbProxyClient mClient;
   private ByteBufferPool mBufferPool;
   private DocumentCache mCache;
   private TaskManager mTaskManager;
@@ -148,7 +148,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   @Override
   public boolean onCreate() {
     final Context context = getContext();
-    mClient = SambaProviderApplication.getSambaClient(context);
+    mClient = (SmbProxyClient) SambaProviderApplication.getSambaClient(context);
     mCache = SambaProviderApplication.getDocumentCache(context);
     mTaskManager = SambaProviderApplication.getTaskManager(context);
     mBufferPool = new ByteBufferPool();
@@ -568,7 +568,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       ProxyFileDescriptorCallback callback = new ProxyFileDescriptorCallback() {
         public long onGetSize() throws ErrnoException {
           try {
-            StructStat stat = mClient.stat(uri, false);
+            StructStat stat = mClient.statProxy(uri);
             Log.d(TAG, "onGetSize: " + stat.st_size);
             return stat.st_size;
           } catch (IOException e) {
@@ -582,7 +582,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 //          size -= offset;
           Log.d(TAG, "onRead: offset = " + offset + "; size = " + size);
           try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            final SmbFile file = mClient.openFile(uri, "r");
+            final SmbFile file = mClient.openProxyFile(uri, "r");
             long off = file.seek(offset);
             Log.d(TAG, "" + off);
             ByteBuffer byteBuffer = mBufferPool.obtainBuffer();
@@ -638,10 +638,10 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
       switch (mode) {
         case "r":
-          return mClient.openProxyFile(ParcelFileDescriptor.MODE_READ_ONLY, callback,
+          return mClient.obtainProxyForFile(ParcelFileDescriptor.MODE_READ_ONLY, callback,
                   mStorageManager);
         case "w":
-          return mClient.openProxyFile(ParcelFileDescriptor.MODE_WRITE_ONLY, callback,
+          return mClient.obtainProxyForFile(ParcelFileDescriptor.MODE_WRITE_ONLY, callback,
                   mStorageManager);
         default:
           // Should never happen.
