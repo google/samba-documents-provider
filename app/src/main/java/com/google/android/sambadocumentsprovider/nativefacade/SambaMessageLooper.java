@@ -59,8 +59,6 @@ public class SambaMessageLooper {
 
       mCredentialCacheClient = new CredentialCacheClient(mLooper, mCredentialCacheImpl);
 
-      Log.d("SambaMessageLooper", "" + Build.VERSION.SDK_INT);
-
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         mServiceClient = new SambaProxyFacadeClient(mLooper, mClientImpl);
       } else {

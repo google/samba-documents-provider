@@ -60,7 +60,9 @@
           </extensions>
         </Objective-C-extensions>
         <XML>
-          <option name="XML_LEGACY_SETTINGS_IMPORTED" value="true" />
+          <option name="XML_KEEP_LINE_BREAKS" value="false" />
+          <option name="XML_ALIGN_ATTRIBUTES" value="false" />
+          <option name="XML_SPACE_INSIDE_EMPTY_TAG" value="true" />
         </XML>
         <codeStyleSettings language="XML">
           <option name="FORCE_REARRANGE_MODE" value="1" />
@@ -221,6 +223,6 @@
         </codeStyleSettings>
       </value>
     </option>
-    <option name="PREFERRED_PROJECT_CODE_STYLE" value="Default (1)" />
+    <option name="PREFERRED_PROJECT_CODE_STYLE" value="Google Configuration Checker Style" />
   </component>
 </project>

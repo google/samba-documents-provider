@@ -26,10 +26,6 @@ import android.os.storage.StorageManager;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * Created by rthakohov on 6/30/17.
- */
-
 public class SambaProxyFileClient extends SambaFileClient {
     final long mSize;
     final String mUri;

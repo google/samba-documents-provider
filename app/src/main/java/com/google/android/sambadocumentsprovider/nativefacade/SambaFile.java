@@ -55,7 +55,7 @@ class SambaFile implements SmbFile {
 
   public long seek(long offset) throws IOException {
     try {
-      long res = seek(mNativeHandler, mNativeFd, (int) offset, 0);
+      long res = seek(mNativeHandler, mNativeFd, offset, 0);
       Log.d("SambaFile", "" + offset);
       return res;
     } catch (ErrnoException e) {
@@ -80,7 +80,7 @@ class SambaFile implements SmbFile {
   private native int write(long handler, int fd, ByteBuffer buffer, int length)
       throws ErrnoException;
 
-  private native long seek(long handler, int fd, int offset, int whence)
+  private native long seek(long handler, int fd, long offset, int whence)
       throws ErrnoException;
 
   private native void close(long handler, int fd) throws ErrnoException;

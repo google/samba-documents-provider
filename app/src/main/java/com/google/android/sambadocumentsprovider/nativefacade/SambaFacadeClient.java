@@ -20,18 +20,13 @@ package com.google.android.sambadocumentsprovider.nativefacade;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
-import android.os.ParcelFileDescriptor;
-import android.os.ProxyFileDescriptorCallback;
-import android.os.storage.StorageManager;
 import android.support.annotation.IntDef;
 import android.system.StructStat;
 
-import com.google.android.sambadocumentsprovider.SambaProviderApplication;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.sql.Struct;
 import java.util.List;
 
 class SambaFacadeClient extends BaseClient implements SmbClient {

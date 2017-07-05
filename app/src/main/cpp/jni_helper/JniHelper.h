@@ -71,7 +71,7 @@ JNIEXPORT jlong JNICALL
 
 JNIEXPORT jlong JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek(
-    JNIEnv *env, jobject instance, jlong pointer, jint fd, jint offset, jint whence);
+    JNIEnv *env, jobject instance, jlong pointer, jint fd, jlong offset, jint whence);
 
 JNIEXPORT jlong JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_write(

@@ -23,10 +23,6 @@ import android.os.storage.StorageManager;
 
 import java.io.IOException;
 
-/**
- * Created by rthakohov on 7/4/17.
- */
-
 public class SambaProxyFacadeClient extends SambaFacadeClient {
 
     SambaProxyFacadeClient(Looper looper, SmbClient clientImpl) {

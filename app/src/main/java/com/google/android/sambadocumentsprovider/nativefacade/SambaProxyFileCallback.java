@@ -27,10 +27,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * Created by rthakohov on 7/4/17.
- */
-
 class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
     private static final String TAG = "SambaProxyFileCallback";
 

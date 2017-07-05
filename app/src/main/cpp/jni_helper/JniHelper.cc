@@ -532,7 +532,7 @@ jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek
     jobject instance,
     jlong pointer,
     jint fd,
-    jint offset,
+    jlong offset,
     jint whence) {
   SambaClient::SambaClient *client =
           reinterpret_cast<SambaClient::SambaClient*>(pointer);
