@@ -59,11 +59,7 @@ public class SambaMessageLooper {
 
       mCredentialCacheClient = new CredentialCacheClient(mLooper, mCredentialCacheImpl);
 
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        mServiceClient = new SambaProxyFacadeClient(mLooper, mClientImpl);
-      } else {
-        mServiceClient = new SambaFacadeClient(mLooper, mClientImpl);
-      }
+      mServiceClient = new SambaFacadeClient(mLooper, mClientImpl);
     } catch(InterruptedException e) {
       // Should never happen
       throw new RuntimeException(e);

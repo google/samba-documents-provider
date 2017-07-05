@@ -27,6 +27,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
@@ -53,9 +54,8 @@ import com.google.android.sambadocumentsprovider.document.LoadChildrenTask;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.document.LoadDocumentTask;
 import com.google.android.sambadocumentsprovider.document.LoadStatTask;
-import com.google.android.sambadocumentsprovider.nativefacade.SambaProxyFileClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -135,7 +135,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   };
 
   private ShareManager mShareManager;
-  private SmbClient mClient;
+  private SmbFacade mClient;
   private ByteBufferPool mBufferPool;
   private DocumentCache mCache;
   private TaskManager mTaskManager;
@@ -144,7 +144,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   @Override
   public boolean onCreate() {
     final Context context = getContext();
-    mClient = SambaProviderApplication.getSambaClient(context);
+    mClient = (SmbFacade) SambaProviderApplication.getSambaClient(context);
     mCache = SambaProviderApplication.getDocumentCache(context);
     mTaskManager = SambaProviderApplication.getTaskManager(context);
     mBufferPool = new ByteBufferPool();
@@ -561,15 +561,13 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
       final String uri = toUriString(documentId);
 
-      SmbFile file = mClient.openFile(uri, mode);
-      if (file instanceof SambaProxyFileClient) {
-        Log.d(TAG, "Getting ProxyFD");
-        return ((SambaProxyFileClient) file)
-                .getProxyFileDescriptor(
-                        ParcelFileDescriptor.parseMode(mode),
-                        mBufferPool.obtainBuffer(),
-                        cancellationSignal,
-                        mStorageManager);
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        return mClient.openProxyFile(
+                uri,
+                mode,
+                mBufferPool.obtainBuffer(),
+                cancellationSignal,
+                mStorageManager);
       }
 
       ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createReliablePipe();

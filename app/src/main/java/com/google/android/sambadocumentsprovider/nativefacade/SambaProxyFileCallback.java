@@ -30,11 +30,11 @@ import java.nio.ByteBuffer;
 class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
     private static final String TAG = "SambaProxyFileCallback";
 
-    private final SambaProxyFileClient mFile;
+    private final SambaFile mFile;
     private final ByteBuffer mBuffer;
     private final CancellationSignal mSignal;
 
-    SambaProxyFileCallback(SambaProxyFileClient file, ByteBuffer buffer, CancellationSignal signal) {
+    SambaProxyFileCallback(SambaFile file, ByteBuffer buffer, CancellationSignal signal) {
         mFile = file;
         mBuffer = buffer;
         mSignal = signal;

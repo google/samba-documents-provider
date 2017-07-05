@@ -17,25 +17,18 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
-import android.os.Looper;
-import android.os.Message;
+import android.os.CancellationSignal;
+import android.os.ParcelFileDescriptor;
 import android.os.storage.StorageManager;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
-public class SambaProxyFacadeClient extends SambaFacadeClient {
-
-    SambaProxyFacadeClient(Looper looper, SmbClient clientImpl) {
-        super(looper, clientImpl);
-    }
-
-    @Override
-    protected SmbFile initSambaFileClient(Looper looper, SambaFile sambaFile) {
-        return new SambaProxyFileClient(looper, sambaFile, sambaFile.mSize, sambaFile.mUri);
-    }
-
-    @Override
-    protected void processMessage(Message msg) {
-        mHandler.handleMessage(msg);
-    }
+public interface SmbFacade extends SmbClient {
+  ParcelFileDescriptor openProxyFile(
+          String uri,
+          String mode,
+          ByteBuffer buffer,
+          CancellationSignal signal,
+          StorageManager storageManager) throws IOException;
 }
