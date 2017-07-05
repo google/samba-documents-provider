@@ -551,7 +551,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public ParcelFileDescriptor openDocument(String documentId, String mode,
-                                           final CancellationSignal cancellationSignal) throws FileNotFoundException {
+      CancellationSignal cancellationSignal) throws FileNotFoundException {
     Log.d(TAG, "Opening document " + documentId + " with mode " + mode);
 
     try {
@@ -576,13 +576,13 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       switch (mode) {
         case "r": {
           final ReadFileTask task = new ReadFileTask(
-                  uri, mClient, pipe[1], mBufferPool, cancellationSignal);
+              uri, mClient, pipe[1], mBufferPool, cancellationSignal);
           mTaskManager.runIoTask(task);
         }
         return pipe[0];
         case "w": {
           final WriteFileTask task = new WriteFileTask(uri, mClient, pipe[0], mBufferPool,
-                  cancellationSignal, mWriteFinishedCallback);
+              cancellationSignal, mWriteFinishedCallback);
           mTaskManager.runIoTask(task);
           return pipe[1];
         }
