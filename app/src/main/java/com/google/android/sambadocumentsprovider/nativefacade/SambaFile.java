@@ -28,14 +28,10 @@ class SambaFile implements SmbFile {
 
   private final long mNativeHandler;
   private int mNativeFd;
-  final long mSize;
-  final String mUri;
 
-  SambaFile(long nativeHandler, int nativeFd, long size, String uri) {
+  SambaFile(long nativeHandler, int nativeFd) {
     mNativeHandler = nativeHandler;
     mNativeFd = nativeFd;
-    mSize = size;
-    mUri = uri;
   }
   public int read(ByteBuffer buffer) throws IOException {
     try {
