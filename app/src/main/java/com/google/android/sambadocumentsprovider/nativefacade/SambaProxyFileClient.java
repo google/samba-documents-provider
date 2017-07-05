@@ -17,16 +17,47 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
+import android.os.CancellationSignal;
 import android.os.Looper;
+import android.os.Message;
+import android.os.ParcelFileDescriptor;
+import android.os.storage.StorageManager;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * Created by rthakohov on 6/30/17.
  */
 
 public class SambaProxyFileClient extends SambaFileClient {
-    SambaProxyFileClient(Looper looper, SmbFile smbFileImpl) {
+    final long mSize;
+    final String mUri;
+
+    SambaProxyFileClient(Looper looper,
+                         SmbFile smbFileImpl,
+                         long size,
+                         String uri) {
         super(looper, smbFileImpl);
+
+        mSize = size;
+        mUri = uri;
     }
 
+    @Override
+    protected void processMessage(Message message) {
+        mHandler.handleMessage(message);
+    }
+
+    public ParcelFileDescriptor getProxyFileDescriptor(int mode,
+                                                ByteBuffer buffer,
+                                                CancellationSignal signal,
+                                                StorageManager storageManager) throws IOException {
+        return storageManager.openProxyFileDescriptor(
+                mode,
+                new SambaProxyFileCallback(this, buffer, signal),
+                mHandler
+        );
+    }
 
 }

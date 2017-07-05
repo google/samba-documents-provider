@@ -30,7 +30,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
-import android.os.ProxyFileDescriptorCallback;
 import android.os.storage.StorageManager;
 import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
@@ -38,8 +37,6 @@ import android.provider.DocumentsContract.Root;
 import android.provider.DocumentsProvider;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
-import android.system.ErrnoException;
-import android.system.StructStat;
 import android.util.Log;
 import com.google.android.sambadocumentsprovider.R;
 import com.google.android.sambadocumentsprovider.SambaProviderApplication;
@@ -56,13 +53,12 @@ import com.google.android.sambadocumentsprovider.document.LoadChildrenTask;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.document.LoadDocumentTask;
 import com.google.android.sambadocumentsprovider.document.LoadStatTask;
+import com.google.android.sambadocumentsprovider.nativefacade.SambaProxyFileClient;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbProxyClient;
 
-import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -139,7 +135,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   };
 
   private ShareManager mShareManager;
-  private SmbProxyClient mClient;
+  private SmbClient mClient;
   private ByteBufferPool mBufferPool;
   private DocumentCache mCache;
   private TaskManager mTaskManager;
@@ -148,7 +144,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   @Override
   public boolean onCreate() {
     final Context context = getContext();
-    mClient = (SmbProxyClient) SambaProviderApplication.getSambaClient(context);
+    mClient = SambaProviderApplication.getSambaClient(context);
     mCache = SambaProviderApplication.getDocumentCache(context);
     mTaskManager = SambaProviderApplication.getTaskManager(context);
     mBufferPool = new ByteBufferPool();
@@ -565,86 +561,35 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
       final String uri = toUriString(documentId);
 
-      ProxyFileDescriptorCallback callback = new ProxyFileDescriptorCallback() {
-        public long onGetSize() throws ErrnoException {
-          try {
-            StructStat stat = mClient.statProxy(uri);
-            Log.d(TAG, "onGetSize: " + stat.st_size);
-            return stat.st_size;
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
+      SmbFile file = mClient.openFile(uri, mode);
+      if (file instanceof SambaProxyFileClient) {
+        Log.d(TAG, "Getting ProxyFD");
+        return ((SambaProxyFileClient) file)
+                .getProxyFileDescriptor(
+                        ParcelFileDescriptor.parseMode(mode),
+                        mBufferPool.obtainBuffer(),
+                        cancellationSignal,
+                        mStorageManager);
+      }
 
-          return 0;
-        }
-
-        public int onRead(long offset, int size, byte[] data) throws ErrnoException {
-//          size -= offset;
-          Log.d(TAG, "onRead: offset = " + offset + "; size = " + size);
-          try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            final SmbFile file = mClient.openProxyFile(uri, "r");
-            long off = file.seek(offset);
-            Log.d(TAG, "" + off);
-            ByteBuffer byteBuffer = mBufferPool.obtainBuffer();
-            byte[] buf = new byte[byteBuffer.capacity()];
-
-            int readSize;
-            int total = 0;
-            while ((cancellationSignal == null || !cancellationSignal.isCanceled())
-                    && (readSize = file.read(byteBuffer)) > 0) {
-              Log.d(TAG, "Just read: " + readSize);
-              byteBuffer.get(buf, 0, readSize);
-              os.write(buf, 0, readSize);
-              byteBuffer.clear();
-              total += readSize;
-              Log.d(TAG, "Reading: " + total);
-              if (total >= size) {
-                break;
-              }
-            }
-
-
-            byte[] output = os.toByteArray();
-            for (int i = 0; i < size; i++) {
-              data[i]  = output[i];
-            }
-
-            file.close();
-
-            Log.d(TAG, "Done reading: " + Math.min(size, output.length));
-
-            return Math.min(size, output.length);
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
-
-          return 0;
-        }
-
-        public int onWrite(long offset, int size, byte[] data) throws ErrnoException {
-          Log.d(TAG, "onWrite");
-          return 0;
-        }
-
-        public void onFsync() throws ErrnoException {
-          Log.d(TAG, "onFsync");
-        }
-
-        @Override
-        public void onRelease() {
-          Log.d(TAG, "onRelease");
-        }
-      };
-
+      ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createReliablePipe();
       switch (mode) {
-        case "r":
-          return mClient.obtainProxyForFile(ParcelFileDescriptor.MODE_READ_ONLY, callback,
-                  mStorageManager);
-        case "w":
-          return mClient.obtainProxyForFile(ParcelFileDescriptor.MODE_WRITE_ONLY, callback,
-                  mStorageManager);
+        case "r": {
+          final ReadFileTask task = new ReadFileTask(
+                  uri, mClient, pipe[1], mBufferPool, cancellationSignal);
+          mTaskManager.runIoTask(task);
+        }
+        return pipe[0];
+        case "w": {
+          final WriteFileTask task = new WriteFileTask(uri, mClient, pipe[0], mBufferPool,
+                  cancellationSignal, mWriteFinishedCallback);
+          mTaskManager.runIoTask(task);
+          return pipe[1];
+        }
         default:
           // Should never happen.
+          pipe[0].close();
+          pipe[1].close();
           throw new UnsupportedOperationException("Mode " + mode + " is not supported.");
       }
     } catch(FileNotFoundException e) {

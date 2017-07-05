@@ -131,7 +131,8 @@ class NativeSambaFacade implements SmbClient {
   public SambaFile openFile(String uri, String mode) throws IOException {
     try {
       checkNativeHandler();
-      return new SambaFile(mNativeHandler, openFile(mNativeHandler, uri, mode));
+      StructStat stat = stat(mNativeHandler, uri);
+      return new SambaFile(mNativeHandler, openFile(mNativeHandler, uri, mode), stat.st_size, uri);
     } catch(ErrnoException e) {
       throw new IOException("Failed to open " + uri, e);
     }

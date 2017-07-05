@@ -17,6 +17,8 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
+import android.system.StructStat;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;

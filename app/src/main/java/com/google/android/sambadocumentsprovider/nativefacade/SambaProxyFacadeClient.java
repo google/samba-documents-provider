@@ -17,22 +17,29 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
-import android.os.ParcelFileDescriptor;
-import android.os.ProxyFileDescriptorCallback;
+import android.os.Looper;
+import android.os.Message;
 import android.os.storage.StorageManager;
-import android.system.StructStat;
 
 import java.io.IOException;
 
 /**
- * Created by rthakohov on 6/30/17.
+ * Created by rthakohov on 7/4/17.
  */
 
-public interface SmbProxyClient extends SmbClient {
-    SmbFile openProxyFile(String uri, String mode) throws IOException;
+public class SambaProxyFacadeClient extends SambaFacadeClient {
 
-    StructStat statProxy(String uri) throws IOException;
+    SambaProxyFacadeClient(Looper looper, SmbClient clientImpl) {
+        super(looper, clientImpl);
+    }
 
-    ParcelFileDescriptor obtainProxyForFile(int mode, ProxyFileDescriptorCallback callback,
-                                            StorageManager storageManager) throws IOException;
+    @Override
+    protected SmbFile initSambaFileClient(Looper looper, SambaFile sambaFile) {
+        return new SambaProxyFileClient(looper, sambaFile, sambaFile.mSize, sambaFile.mUri);
+    }
+
+    @Override
+    protected void processMessage(Message msg) {
+        mHandler.handleMessage(msg);
+    }
 }

@@ -42,6 +42,7 @@ public class SambaProviderApplication extends Application {
 
   private SambaConfiguration mSambaConf;
   private ShareManager mShareManager;
+  private StorageManager mStorageManager;
 
   public SambaProviderApplication() {
     final SambaMessageLooper looper = new SambaMessageLooper();
@@ -64,6 +65,8 @@ public class SambaProviderApplication extends Application {
             mSambaClient.reset();
           }
         });
+
+    mStorageManager = (StorageManager) getSystemService(Context.STORAGE_SERVICE);
 
     initializeSambaConf();
   }
@@ -107,6 +110,10 @@ public class SambaProviderApplication extends Application {
 
   public static TaskManager getTaskManager(Context context) {
     return getApplication(context).mTaskManager;
+  }
+
+  public static StorageManager getStorageManager(Context context) {
+    return getApplication(context).mStorageManager;
   }
 
   private static SambaProviderApplication getApplication(Context context) {

@@ -21,6 +21,8 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.IntDef;
+import android.system.StructStat;
+
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -47,7 +49,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
     try(final MessageValues<ByteBuffer> messageValues = MessageValues.obtain()) {
       messageValues.setObj(buffer);
       final Message msg = mHandler.obtainMessage(READ, messageValues);
-      enqueue(msg);
+      processMessage(msg);
       return messageValues.getInt();
     }
   }
@@ -58,7 +60,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
       messageValues.setObj(buffer);
       final Message msg = mHandler.obtainMessage(WRITE, messageValues);
       msg.arg1 = length;
-      enqueue(msg);
+      processMessage(msg);
       return messageValues.getInt();
     }
   }
@@ -73,7 +75,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
 
     msg.setData(data);
 
-    mHandler.handleMessage(msg);
+    processMessage(msg);
     return msg.peekData().getLong(OFFSET);
   }
 
@@ -81,12 +83,14 @@ class SambaFileClient extends BaseClient implements SmbFile {
   public void close() throws IOException {
     try (final MessageValues messageValues = MessageValues.obtain()) {
       final Message msg = mHandler.obtainMessage(CLOSE, messageValues);
-      enqueue(msg);
+      processMessage(msg);
       messageValues.checkException();
     }
   }
 
-
+  protected void processMessage(Message message) {
+    enqueue(message);
+  }
 
   private static class SambaFileHandler extends BaseHandler {
 
