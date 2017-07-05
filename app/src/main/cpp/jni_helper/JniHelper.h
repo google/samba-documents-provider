@@ -19,7 +19,6 @@
 #define SAMBADOCUMENTSPROVIDER_JNI_HELPER_H
 
 #include <jni.h>
-#include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {

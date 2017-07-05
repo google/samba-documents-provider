@@ -21,6 +21,7 @@
 #include "base/Callback.h"
 #include "jni_helper/JniHelper.h"
 #include "samba_includes/libsmbclient.h"
+#include <sys/types.h>
 
 #include <vector>
 

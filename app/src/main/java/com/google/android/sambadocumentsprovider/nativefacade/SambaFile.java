@@ -55,9 +55,7 @@ class SambaFile implements SmbFile {
 
   public long seek(long offset) throws IOException {
     try {
-      long res = seek(mNativeHandler, mNativeFd, offset, 0);
-      Log.d("SambaFile", "" + offset);
-      return res;
+      return seek(mNativeHandler, mNativeFd, offset, 0);
     } catch (ErrnoException e) {
       throw new IOException("Failed to move to offset in file. Fd: " + mNativeFd, e);
     }
