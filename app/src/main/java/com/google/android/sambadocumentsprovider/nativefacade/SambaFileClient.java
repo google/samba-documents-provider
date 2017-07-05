@@ -37,6 +37,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
   private static final int WRITE = 2;
   private static final int CLOSE = 3;
   private static final int SEEK = 4;
+  private static final int FSTAT = 5;
 
   private static final String OFFSET = "offset";
 
@@ -67,16 +68,26 @@ class SambaFileClient extends BaseClient implements SmbFile {
 
   @Override
   public long seek(long offset) throws IOException {
-    final MessageValues messageValues = MessageValues.obtain();
-    final Message msg = mHandler.obtainMessage(SEEK, messageValues);
+    try (final MessageValues messageValues = MessageValues.obtain()) {
+      final Message msg = mHandler.obtainMessage(SEEK, messageValues);
 
-    Bundle data = new Bundle();
-    data.putLong(OFFSET, offset);
+      Bundle data = new Bundle();
+      data.putLong(OFFSET, offset);
 
-    msg.setData(data);
+      msg.setData(data);
 
-    processMessage(msg);
-    return msg.peekData().getLong(OFFSET);
+      processMessage(msg);
+      return msg.peekData().getLong(OFFSET);
+    }
+  }
+
+  @Override
+  public StructStat fstat() throws IOException {
+    try (final MessageValues<StructStat> messageValues = MessageValues.obtain()) {
+      final Message msg = mHandler.obtainMessage(FSTAT, messageValues);
+      enqueue(msg);
+      return messageValues.getObj();
+    }
   }
 
   @Override
@@ -105,17 +116,17 @@ class SambaFileClient extends BaseClient implements SmbFile {
     @Override
     @SuppressWarnings("unchecked")
     public void processMessage(Message msg) {
-      final MessageValues<ByteBuffer> messageValues = (MessageValues<ByteBuffer>) msg.obj;
+      final MessageValues messageValues = (MessageValues) msg.obj;
       try {
-        final ByteBuffer buffer = messageValues.getObj();
-
         switch (msg.what) {
           case READ:
-            messageValues.setInt(mSmbFileImpl.read(buffer));
+            final ByteBuffer readBuffer = (ByteBuffer) messageValues.getObj();
+            messageValues.setInt(mSmbFileImpl.read(readBuffer));
             break;
           case WRITE: {
+            final ByteBuffer writeBuffer = (ByteBuffer) messageValues.getObj();
             final int length = msg.arg1;
-            messageValues.setInt(mSmbFileImpl.write(buffer, length));
+            messageValues.setInt(mSmbFileImpl.write(writeBuffer, length));
             break;
           }
           case CLOSE:
@@ -124,6 +135,9 @@ class SambaFileClient extends BaseClient implements SmbFile {
           case SEEK:
             long offset = mSmbFileImpl.seek(msg.peekData().getLong(OFFSET));
             msg.peekData().putLong(OFFSET, offset);
+          case FSTAT:
+            messageValues.setObj(mSmbFileImpl.fstat());
+            break;
           default:
             throw new UnsupportedOperationException("Unknown operation " + msg.what);
         }

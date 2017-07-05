@@ -161,6 +161,19 @@ SambaClient::ReadDir(
 }
 
 int
+SambaClient::Fstat(const int fd, struct stat * const st) {
+  LOGD(TAG, "Getting stat for %x.", fd);
+  int result = smbc_fstat(fd, st);
+  if (result < 0) {
+    int err = errno;
+    LOGE(TAG, "Failed to obtain stat for %x. Errno: %x.", fd, err);
+    return -err;
+  }
+  LOGV(TAG, "Got stat for %x.", fd);
+  return 0;
+}
+
+int
 SambaClient::Stat(const char *url, struct stat * const st) {
   LOGD(TAG, "Getting stat for %s.", url);
   int result = smbc_stat(url, st);

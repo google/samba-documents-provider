@@ -28,5 +28,6 @@ public interface SmbFile extends Closeable {
   int read(ByteBuffer buffer) throws IOException;
   int write(ByteBuffer buffer, int length) throws IOException;
   long seek(long offset) throws IOException;
+  StructStat fstat() throws IOException;
 
 }

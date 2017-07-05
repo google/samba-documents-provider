@@ -42,7 +42,15 @@ class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
 
     @Override
     public long onGetSize() throws ErrnoException {
-        return mFile.mSize;
+        StructStat stat = null;
+        try {
+            stat = mFile.fstat();
+            return stat.st_size;
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to get size for file");
+        }
+
+        return  0;
     }
 
     @Override

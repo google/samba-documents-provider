@@ -62,6 +62,15 @@ class SambaFile implements SmbFile {
   }
 
   @Override
+  public StructStat fstat() throws IOException {
+    try {
+      return fstat(mNativeHandler, mNativeFd);
+    } catch (ErrnoException e) {
+      throw new IOException("Failed to get stat of " + mNativeFd, e);
+    }
+  }
+
+  @Override
   public void close() throws IOException {
     try {
       int fd = mNativeFd;
@@ -80,6 +89,8 @@ class SambaFile implements SmbFile {
 
   private native long seek(long handler, int fd, long offset, int whence)
       throws ErrnoException;
+
+  private native StructStat fstat(long handler, int fd) throws ErrnoException;
 
   private native void close(long handler, int fd) throws ErrnoException;
 }

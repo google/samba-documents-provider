@@ -39,6 +39,8 @@ class SambaClient {
 
   int Stat(const char *url, struct stat *st);
 
+  int Fstat(const int fd, struct stat * const st);
+
   int CreateFile(const char *url);
 
   int Mkdir(const char *url);
