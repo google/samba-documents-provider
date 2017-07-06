@@ -567,7 +567,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
                 uri,
                 mode,
                 mStorageManager,
-                mBufferPool.obtainBuffer(),
+                mBufferPool,
                 cancellationSignal);
       }
 

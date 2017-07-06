@@ -21,6 +21,8 @@ import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
 import android.os.storage.StorageManager;
 
+import com.google.android.sambadocumentsprovider.provider.ByteBufferPool;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -29,6 +31,6 @@ public interface SmbFacade extends SmbClient {
           String uri,
           String mode,
           StorageManager storageManager,
-          ByteBuffer buffer,
+          ByteBufferPool bufferPool,
           CancellationSignal signal) throws IOException;
 }

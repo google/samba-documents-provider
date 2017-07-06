@@ -23,6 +23,8 @@ import android.system.ErrnoException;
 import android.system.StructStat;
 import android.util.Log;
 
+import com.google.android.sambadocumentsprovider.provider.ByteBufferPool;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,12 +33,14 @@ class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
     private static final String TAG = "SambaProxyFileCallback";
 
     private final SambaFile mFile;
+    private final ByteBufferPool mBufferPool;
     private final ByteBuffer mBuffer;
     private final CancellationSignal mSignal;
 
-    SambaProxyFileCallback(SambaFile file, ByteBuffer buffer, CancellationSignal signal) {
+    SambaProxyFileCallback(SambaFile file, ByteBufferPool bufferPool, CancellationSignal signal) {
         mFile = file;
-        mBuffer = buffer;
+        mBufferPool = bufferPool;
+        mBuffer = mBufferPool.obtainBuffer();
         mSignal = signal;
     }
 
@@ -58,25 +62,19 @@ class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
         try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
             mFile.seek(offset);
 
-            byte[] buf = new byte[mBuffer.capacity()];
-
             int readSize;
             int total = 0;
             while ((mSignal == null || !mSignal.isCanceled())
                     && (readSize = mFile.read(mBuffer)) > 0) {
-                mBuffer.get(buf, 0, readSize);
-                os.write(buf, 0, readSize);
+                mBuffer.get(data, total, Math.min(size - total, readSize));
                 mBuffer.clear();
-                total += readSize;
+                total += Math.min(size - total, readSize);
                 if (total >= size) {
                     break;
                 }
             }
 
-            byte[] output = os.toByteArray();
-            System.arraycopy(output, 0, data, 0, Math.min(size, output.length));
-
-            return Math.min(size, output.length);
+            return Math.min(size, total);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -103,13 +101,13 @@ class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
             Log.e(TAG, "Failed to write file.", e);
         }
 
-        Log.d(TAG, "written = " + written);
-
         return written;
     }
 
     @Override
     public void onRelease() {
+        mBufferPool.recycleBuffer(mBuffer);
+
         try {
             mFile.close();
         } catch (IOException e) {

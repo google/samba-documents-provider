@@ -544,7 +544,7 @@ jobject Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_fs
     throw_new_errno_exception(env, "stat", -result);
   }
 
-  return create_structstat(env, st);;
+  return create_structstat(env, st);
 }
 
 jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek(

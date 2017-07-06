@@ -20,12 +20,12 @@ package com.google.android.sambadocumentsprovider.provider;
 import android.support.v4.util.Pools;
 import java.nio.ByteBuffer;
 
-class ByteBufferPool {
+public class ByteBufferPool {
 
   private static final int BUFFER_CAPACITY = 128 * 1024;
   private final Pools.Pool<ByteBuffer> mBufferPool = new Pools.SynchronizedPool<>(16);
 
-  ByteBuffer obtainBuffer() {
+  public ByteBuffer obtainBuffer() {
     ByteBuffer buffer = mBufferPool.acquire();
 
     if (buffer == null) {
@@ -35,7 +35,7 @@ class ByteBufferPool {
     return buffer;
   }
 
-  void recycleBuffer(ByteBuffer buffer) {
+  public void recycleBuffer(ByteBuffer buffer) {
     buffer.clear();
     mBufferPool.release(buffer);
   }
