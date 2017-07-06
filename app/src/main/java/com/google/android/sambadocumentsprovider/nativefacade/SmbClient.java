@@ -17,6 +17,9 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
+import android.os.ParcelFileDescriptor;
+import android.os.ProxyFileDescriptorCallback;
+import android.os.storage.StorageManager;
 import android.system.StructStat;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import java.io.IOException;

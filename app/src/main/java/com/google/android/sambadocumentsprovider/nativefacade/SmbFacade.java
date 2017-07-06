@@ -17,17 +17,19 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
-import android.system.StructStat;
+import android.os.CancellationSignal;
+import android.os.ParcelFileDescriptor;
+import android.os.storage.StorageManager;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public interface SmbFile extends Closeable {
+public interface SmbFacade extends SmbClient {
+  SmbFile openProxyFile(String uri, String mode) throws IOException;
 
-  int read(ByteBuffer buffer) throws IOException;
-  int write(ByteBuffer buffer, int length) throws IOException;
-  long seek(long offset) throws IOException;
-  StructStat fstat() throws IOException;
-
+  ParcelFileDescriptor getProxyFileDescriptor(SmbFile file,
+                                              int mode,
+                                              StorageManager storageManager,
+                                              ByteBuffer buffer,
+                                              CancellationSignal signal) throws IOException;
 }

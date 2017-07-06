@@ -527,6 +527,41 @@ Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_op
   return fd;
 }
 
+jobject Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_fstat(
+        JNIEnv *env,
+        jobject instance,
+        jlong pointer,
+        jint fd) {
+  SambaClient::SambaClient *client =
+          reinterpret_cast<SambaClient::SambaClient*>(pointer);
+
+  jobject stat = NULL;
+
+  struct stat st;
+
+  int result = client->Fstat(fd, &st);
+  if (result < 0) {
+    throw_new_errno_exception(env, "stat", -result);
+  }
+
+  return create_structstat(env, st);;
+}
+
+jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek(
+    JNIEnv *env,
+    jobject instance,
+    jlong pointer,
+    jint fd,
+    jlong offset,
+    jint whence) {
+  SambaClient::SambaClient *client =
+          reinterpret_cast<SambaClient::SambaClient*>(pointer);
+
+  return client->SeekFile(fd, offset, whence);
+}
+
+
+
 jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_read(
     JNIEnv *env,
     jobject instance,

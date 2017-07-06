@@ -161,6 +161,19 @@ SambaClient::ReadDir(
 }
 
 int
+SambaClient::Fstat(const int fd, struct stat * const st) {
+  LOGD(TAG, "Getting stat for %x.", fd);
+  int result = smbc_fstat(fd, st);
+  if (result < 0) {
+    int err = errno;
+    LOGE(TAG, "Failed to obtain stat for %x. Errno: %x.", fd, err);
+    return -err;
+  }
+  LOGV(TAG, "Got stat for %x.", fd);
+  return 0;
+}
+
+int
 SambaClient::Stat(const char *url, struct stat * const st) {
   LOGD(TAG, "Getting stat for %s.", url);
   int result = smbc_stat(url, st);
@@ -249,6 +262,12 @@ int SambaClient::OpenFile(const char *url, const int flag, const mode_t mode) {
     LOGV(TAG, "Opened file at %s with fd %x.", url, fd);
   }
   return fd;
+}
+
+off_t
+SambaClient::SeekFile(const int fd, const off_t offset, const int whence) {
+  LOGV(TAG, "Set offset to %x for file with fd %x", offset, fd);
+  return smbc_lseek(fd, offset, whence);
 }
 
 ssize_t

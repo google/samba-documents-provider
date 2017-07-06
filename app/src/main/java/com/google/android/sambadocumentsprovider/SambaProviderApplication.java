@@ -24,6 +24,9 @@ import android.net.ConnectivityManager.NetworkCallback;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
+import android.os.storage.StorageManager;
+import android.util.Log;
+
 import com.google.android.sambadocumentsprovider.SambaConfiguration.OnConfigurationChangedListener;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.nativefacade.CredentialCache;

@@ -17,6 +17,9 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
+import android.os.ParcelFileDescriptor;
+import android.os.ProxyFileDescriptorCallback;
+import android.os.storage.StorageManager;
 import android.system.ErrnoException;
 import android.system.StructStat;
 import com.google.android.sambadocumentsprovider.BuildConfig;
@@ -128,6 +131,7 @@ class NativeSambaFacade implements SmbClient {
   public SambaFile openFile(String uri, String mode) throws IOException {
     try {
       checkNativeHandler();
+      StructStat stat = stat(mNativeHandler, uri);
       return new SambaFile(mNativeHandler, openFile(mNativeHandler, uri, mode));
     } catch(ErrnoException e) {
       throw new IOException("Failed to open " + uri, e);
