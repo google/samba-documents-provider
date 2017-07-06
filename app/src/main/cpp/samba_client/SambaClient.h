@@ -18,10 +18,11 @@
 #ifndef SAMBADOCUMENTSPROVIDER_SAMBAPROVIDER_H
 #define SAMBADOCUMENTSPROVIDER_SAMBAPROVIDER_H
 
+#include "samba_includes/libsmbclient.h"
 #include "base/Callback.h"
 #include "jni_helper/JniHelper.h"
-#include "samba_includes/libsmbclient.h"
 
+#include <sys/types.h>
 #include <vector>
 
 namespace SambaClient {
@@ -38,6 +39,8 @@ class SambaClient {
 
   int Stat(const char *url, struct stat *st);
 
+  int Fstat(const int fd, struct stat * const st);
+
   int CreateFile(const char *url);
 
   int Mkdir(const char *url);
@@ -53,6 +56,8 @@ class SambaClient {
   ssize_t ReadFile(const int fd, void *buffer, const size_t maxlen);
 
   ssize_t WriteFile(const int fd, void *buffer, const size_t length);
+
+  off_t SeekFile(const int fd, const off_t offset, const int whence);
 
   int CloseFile(const int fd);
  private:

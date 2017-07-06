@@ -18,6 +18,7 @@
 package com.google.android.sambadocumentsprovider.nativefacade;
 
 import android.os.Looper;
+
 import java.util.concurrent.CountDownLatch;
 
 public class SambaMessageLooper {
@@ -41,7 +42,7 @@ public class SambaMessageLooper {
     init();
   }
 
-  public SmbClient getClient() {
+  public SmbFacade getClient() {
     return mServiceClient;
   }
 
@@ -55,6 +56,7 @@ public class SambaMessageLooper {
       mLatch.await();
 
       mCredentialCacheClient = new CredentialCacheClient(mLooper, mCredentialCacheImpl);
+
       mServiceClient = new SambaFacadeClient(mLooper, mClientImpl);
     } catch(InterruptedException e) {
       // Should never happen

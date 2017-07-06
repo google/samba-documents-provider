@@ -15,28 +15,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.google.android.sambadocumentsprovider.provider;
+package com.google.android.sambadocumentsprovider.nativefacade;
 
-import android.support.v4.util.Pools;
+import android.os.CancellationSignal;
+import android.os.ParcelFileDescriptor;
+import android.os.storage.StorageManager;
+
+import com.google.android.sambadocumentsprovider.provider.ByteBufferPool;
+
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class ByteBufferPool {
-
-  private static final int BUFFER_CAPACITY = 128 * 1024;
-  private final Pools.Pool<ByteBuffer> mBufferPool = new Pools.SynchronizedPool<>(16);
-
-  public ByteBuffer obtainBuffer() {
-    ByteBuffer buffer = mBufferPool.acquire();
-
-    if (buffer == null) {
-      buffer = ByteBuffer.allocateDirect(BUFFER_CAPACITY);
-    }
-
-    return buffer;
-  }
-
-  public void recycleBuffer(ByteBuffer buffer) {
-    buffer.clear();
-    mBufferPool.release(buffer);
-  }
+public interface SmbFacade extends SmbClient {
+  ParcelFileDescriptor openProxyFile(
+          String uri,
+          String mode,
+          StorageManager storageManager,
+          ByteBufferPool bufferPool,
+          CancellationSignal signal) throws IOException;
 }

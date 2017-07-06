@@ -17,9 +17,12 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
+import android.os.Bundle;
 import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.IntDef;
+import android.system.StructStat;
+
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -33,6 +36,10 @@ class SambaFileClient extends BaseClient implements SmbFile {
   private static final int READ = 1;
   private static final int WRITE = 2;
   private static final int CLOSE = 3;
+  private static final int SEEK = 4;
+  private static final int FSTAT = 5;
+
+  private static final String OFFSET = "offset";
 
   SambaFileClient(Looper looper, SmbFile smbFileImpl) {
     mHandler = new SambaFileHandler(looper, smbFileImpl);
@@ -60,6 +67,30 @@ class SambaFileClient extends BaseClient implements SmbFile {
   }
 
   @Override
+  public long seek(long offset) throws IOException {
+    try (final MessageValues messageValues = MessageValues.obtain()) {
+      final Message msg = mHandler.obtainMessage(SEEK, messageValues);
+
+      Bundle data = new Bundle();
+      data.putLong(OFFSET, offset);
+
+      msg.setData(data);
+
+      enqueue(msg);
+      return msg.peekData().getLong(OFFSET);
+    }
+  }
+
+  @Override
+  public StructStat fstat() throws IOException {
+    try (final MessageValues<StructStat> messageValues = MessageValues.obtain()) {
+      final Message msg = mHandler.obtainMessage(FSTAT, messageValues);
+      enqueue(msg);
+      return messageValues.getObj();
+    }
+  }
+
+  @Override
   public void close() throws IOException {
     try (final MessageValues messageValues = MessageValues.obtain()) {
       final Message msg = mHandler.obtainMessage(CLOSE, messageValues);
@@ -81,21 +112,27 @@ class SambaFileClient extends BaseClient implements SmbFile {
     @Override
     @SuppressWarnings("unchecked")
     public void processMessage(Message msg) {
-      final MessageValues<ByteBuffer> messageValues = (MessageValues<ByteBuffer>) msg.obj;
+      final MessageValues messageValues = (MessageValues) msg.obj;
       try {
-        final ByteBuffer buffer = messageValues.getObj();
-
         switch (msg.what) {
           case READ:
-            messageValues.setInt(mSmbFileImpl.read(buffer));
+            final ByteBuffer readBuffer = (ByteBuffer) messageValues.getObj();
+            messageValues.setInt(mSmbFileImpl.read(readBuffer));
             break;
           case WRITE: {
+            final ByteBuffer writeBuffer = (ByteBuffer) messageValues.getObj();
             final int length = msg.arg1;
-            messageValues.setInt(mSmbFileImpl.write(buffer, length));
+            messageValues.setInt(mSmbFileImpl.write(writeBuffer, length));
             break;
           }
           case CLOSE:
             mSmbFileImpl.close();
+            break;
+          case SEEK:
+            long offset = mSmbFileImpl.seek(msg.peekData().getLong(OFFSET));
+            msg.peekData().putLong(OFFSET, offset);
+          case FSTAT:
+            messageValues.setObj(mSmbFileImpl.fstat());
             break;
           default:
             throw new UnsupportedOperationException("Unknown operation " + msg.what);

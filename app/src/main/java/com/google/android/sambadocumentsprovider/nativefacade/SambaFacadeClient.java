@@ -18,17 +18,25 @@
 package com.google.android.sambadocumentsprovider.nativefacade;
 
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.os.Looper;
 import android.os.Message;
+import android.os.ParcelFileDescriptor;
+import android.os.storage.StorageManager;
 import android.support.annotation.IntDef;
 import android.system.StructStat;
+
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
+import com.google.android.sambadocumentsprovider.provider.ByteBufferPool;
+import com.google.android.sambadocumentsprovider.provider.SambaProxyFileCallback;
+
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.nio.ByteBuffer;
 import java.util.List;
 
-class SambaFacadeClient extends BaseClient implements SmbClient {
+class SambaFacadeClient extends BaseClient implements SmbFacade {
 
   @IntDef({ RESET, READ_DIR, STAT, MKDIR, RENAME, UNLINK, RMDIR, OPEN_FILE })
   @Retention(RetentionPolicy.SOURCE)
@@ -134,12 +142,35 @@ class SambaFacadeClient extends BaseClient implements SmbClient {
 
   @Override
   public SmbFile openFile(String uri, String mode) throws IOException {
+    return new SambaFileClient(mHandler.getLooper(), openFileRaw(uri, mode));
+  }
+
+  @Override
+  public ParcelFileDescriptor openProxyFile(
+          String uri,
+          String mode,
+          StorageManager storageManager,
+          ByteBufferPool bufferPool,
+         CancellationSignal signal) throws IOException {
+    SambaFile file = openFileRaw(uri, mode);
+    return storageManager.openProxyFileDescriptor(
+            ParcelFileDescriptor.parseMode(mode),
+            new SambaProxyFileCallback(file, bufferPool, signal),
+            mHandler);
+  }
+
+  private SambaFile openFileRaw(String uri, String mode) throws IOException {
     try (final MessageValues<SambaFile> messageValues = MessageValues.obtain()) {
-      final Message msg = obtainMessage(OPEN_FILE, messageValues, uri);
-      msg.peekData().putString(MODE, mode);
-      enqueue(msg);
-      return new SambaFileClient(mHandler.getLooper(), messageValues.getObj());
+      enqueue(obtainMessageForOpenFile(uri, mode, messageValues));
+      return messageValues.getObj();
     }
+  }
+
+  private Message obtainMessageForOpenFile(String uri, String mode,
+                                           MessageValues<SambaFile> messageValues) {
+    final Message msg = obtainMessage(OPEN_FILE, messageValues, uri);
+    msg.peekData().putString(MODE, mode);
+    return msg;
   }
 
   private static class SambaServiceHandler extends BaseHandler {

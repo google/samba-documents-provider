@@ -24,17 +24,18 @@ import android.net.ConnectivityManager.NetworkCallback;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
+
 import com.google.android.sambadocumentsprovider.SambaConfiguration.OnConfigurationChangedListener;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.nativefacade.CredentialCache;
 import com.google.android.sambadocumentsprovider.nativefacade.SambaMessageLooper;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
 
 public class SambaProviderApplication extends Application {
 
   private final DocumentCache mCache = new DocumentCache();
   private final TaskManager mTaskManager = new TaskManager();
-  private final SmbClient mSambaClient;
+  private final SmbFacade mSambaClient;
   private final CredentialCache mCredentialCache;
 
   private SambaConfiguration mSambaConf;
@@ -94,7 +95,7 @@ public class SambaProviderApplication extends Application {
     }
   }
 
-  public static SmbClient getSambaClient(Context context) {
+  public static SmbFacade getSambaClient(Context context) {
     return getApplication(context).mSambaClient;
   }
 

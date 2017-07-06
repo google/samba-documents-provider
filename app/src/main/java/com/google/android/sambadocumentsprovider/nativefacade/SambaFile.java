@@ -18,6 +18,9 @@
 package com.google.android.sambadocumentsprovider.nativefacade;
 
 import android.system.ErrnoException;
+import android.system.StructStat;
+import android.util.Log;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -46,6 +49,23 @@ class SambaFile implements SmbFile {
     }
   }
 
+  public long seek(long offset) throws IOException {
+    try {
+      return seek(mNativeHandler, mNativeFd, offset, 0);
+    } catch (ErrnoException e) {
+      throw new IOException("Failed to move to offset in file. Fd: " + mNativeFd, e);
+    }
+  }
+
+  @Override
+  public StructStat fstat() throws IOException {
+    try {
+      return fstat(mNativeHandler, mNativeFd);
+    } catch (ErrnoException e) {
+      throw new IOException("Failed to get stat of " + mNativeFd, e);
+    }
+  }
+
   @Override
   public void close() throws IOException {
     try {
@@ -62,6 +82,11 @@ class SambaFile implements SmbFile {
 
   private native int write(long handler, int fd, ByteBuffer buffer, int length)
       throws ErrnoException;
+
+  private native long seek(long handler, int fd, long offset, int whence)
+      throws ErrnoException;
+
+  private native StructStat fstat(long handler, int fd) throws ErrnoException;
 
   private native void close(long handler, int fd) throws ErrnoException;
 }

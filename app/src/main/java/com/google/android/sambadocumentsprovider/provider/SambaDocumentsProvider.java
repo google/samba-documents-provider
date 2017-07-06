@@ -27,9 +27,11 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
+import android.os.storage.StorageManager;
 import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
 import android.provider.DocumentsContract.Root;
@@ -53,6 +55,9 @@ import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.document.LoadDocumentTask;
 import com.google.android.sambadocumentsprovider.document.LoadStatTask;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
@@ -131,10 +136,11 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   };
 
   private ShareManager mShareManager;
-  private SmbClient mClient;
+  private SmbFacade mClient;
   private ByteBufferPool mBufferPool;
   private DocumentCache mCache;
   private TaskManager mTaskManager;
+  private StorageManager mStorageManager;
 
   @Override
   public boolean onCreate() {
@@ -145,6 +151,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     mBufferPool = new ByteBufferPool();
     mShareManager = SambaProviderApplication.getServerManager(context);
     mShareManager.addListener(mShareChangeListener);
+    mStorageManager = (StorageManager) context.getSystemService(Context.STORAGE_SERVICE);
 
     return mClient != null;
   }
@@ -547,12 +554,23 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   public ParcelFileDescriptor openDocument(String documentId, String mode,
       CancellationSignal cancellationSignal) throws FileNotFoundException {
     Log.d(TAG, "Opening document " + documentId + " with mode " + mode);
+
     try {
       if (!"r".equals(mode) && !"w".equals(mode)) {
         throw new UnsupportedOperationException("Mode " + mode + " is not supported");
       }
 
       final String uri = toUriString(documentId);
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        return mClient.openProxyFile(
+                uri,
+                mode,
+                mStorageManager,
+                mBufferPool,
+                cancellationSignal);
+      }
+
       ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createReliablePipe();
       switch (mode) {
         case "r": {
@@ -560,7 +578,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
               uri, mClient, pipe[1], mBufferPool, cancellationSignal);
           mTaskManager.runIoTask(task);
         }
-          return pipe[0];
+        return pipe[0];
         case "w": {
           final WriteFileTask task = new WriteFileTask(uri, mClient, pipe[0], mBufferPool,
               cancellationSignal, mWriteFinishedCallback);
