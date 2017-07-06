@@ -28,6 +28,7 @@ import android.system.StructStat;
 
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.provider.ByteBufferPool;
+import com.google.android.sambadocumentsprovider.provider.SambaProxyFileCallback;
 
 import java.io.IOException;
 import java.lang.annotation.Retention;
@@ -154,7 +155,7 @@ class SambaFacadeClient extends BaseClient implements SmbFacade {
     SambaFile file = openFileRaw(uri, mode);
     return storageManager.openProxyFileDescriptor(
             ParcelFileDescriptor.parseMode(mode),
-            new SambaProxyFileCallback((SambaFile) file, bufferPool, signal),
+            new SambaProxyFileCallback(file, bufferPool, signal),
             mHandler);
   }
 

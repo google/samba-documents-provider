@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.google.android.sambadocumentsprovider.nativefacade;
+package com.google.android.sambadocumentsprovider.provider;
 
 import android.os.CancellationSignal;
 import android.os.ProxyFileDescriptorCallback;
@@ -23,21 +23,21 @@ import android.system.ErrnoException;
 import android.system.StructStat;
 import android.util.Log;
 
-import com.google.android.sambadocumentsprovider.provider.ByteBufferPool;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
+public class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
     private static final String TAG = "SambaProxyFileCallback";
 
-    private final SambaFile mFile;
+    private final SmbFile mFile;
     private final ByteBufferPool mBufferPool;
     private final ByteBuffer mBuffer;
     private final CancellationSignal mSignal;
 
-    SambaProxyFileCallback(SambaFile file, ByteBufferPool bufferPool, CancellationSignal signal) {
+    public SambaProxyFileCallback(SmbFile file, ByteBufferPool bufferPool, CancellationSignal signal) {
         mFile = file;
         mBufferPool = bufferPool;
         mBuffer = mBufferPool.obtainBuffer();
