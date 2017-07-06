@@ -145,7 +145,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   @Override
   public boolean onCreate() {
     final Context context = getContext();
-    mClient = (SmbFacade) SambaProviderApplication.getSambaClient(context);
+    mClient = SambaProviderApplication.getSambaClient(context);
     mCache = SambaProviderApplication.getDocumentCache(context);
     mTaskManager = SambaProviderApplication.getTaskManager(context);
     mBufferPool = new ByteBufferPool();
@@ -563,10 +563,9 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       final String uri = toUriString(documentId);
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        SmbFile file = mClient.openProxyFile(uri, mode);
-        return mClient.getProxyFileDescriptor(
-                file,
-                ParcelFileDescriptor.parseMode(mode),
+        return mClient.openProxyFile(
+                uri,
+                mode,
                 mStorageManager,
                 mBufferPool.obtainBuffer(),
                 cancellationSignal);

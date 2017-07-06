@@ -143,19 +143,15 @@ class SambaFacadeClient extends BaseClient implements SmbFacade {
   }
 
   @Override
-  public SmbFile openProxyFile(String uri, String mode) throws IOException {
-    return openFileRaw(uri, mode);
-  }
-
-  @Override
-  public ParcelFileDescriptor getProxyFileDescriptor(
-          SmbFile file,
-          int mode,
+  public ParcelFileDescriptor openProxyFile(
+          String uri,
+          String mode,
           StorageManager storageManager,
           ByteBuffer buffer,
-          CancellationSignal signal) throws IOException {
+         CancellationSignal signal) throws IOException {
+    SambaFile file = openFileRaw(uri, mode);
     return storageManager.openProxyFileDescriptor(
-            mode,
+            ParcelFileDescriptor.parseMode(mode),
             new SambaProxyFileCallback((SambaFile) file, buffer, signal),
             mHandler);
   }

@@ -25,11 +25,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public interface SmbFacade extends SmbClient {
-  SmbFile openProxyFile(String uri, String mode) throws IOException;
-
-  ParcelFileDescriptor getProxyFileDescriptor(SmbFile file,
-                                              int mode,
-                                              StorageManager storageManager,
-                                              ByteBuffer buffer,
-                                              CancellationSignal signal) throws IOException;
+  ParcelFileDescriptor openProxyFile(
+          String uri,
+          String mode,
+          StorageManager storageManager,
+          ByteBuffer buffer,
+          CancellationSignal signal) throws IOException;
 }

@@ -17,9 +17,7 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
-import android.os.Build;
 import android.os.Looper;
-import android.util.Log;
 
 import java.util.concurrent.CountDownLatch;
 
@@ -44,7 +42,7 @@ public class SambaMessageLooper {
     init();
   }
 
-  public SmbClient getClient() {
+  public SmbFacade getClient() {
     return mServiceClient;
   }
 

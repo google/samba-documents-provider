@@ -50,7 +50,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
     try(final MessageValues<ByteBuffer> messageValues = MessageValues.obtain()) {
       messageValues.setObj(buffer);
       final Message msg = mHandler.obtainMessage(READ, messageValues);
-      processMessage(msg);
+      enqueue(msg);
       return messageValues.getInt();
     }
   }
@@ -61,7 +61,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
       messageValues.setObj(buffer);
       final Message msg = mHandler.obtainMessage(WRITE, messageValues);
       msg.arg1 = length;
-      processMessage(msg);
+      enqueue(msg);
       return messageValues.getInt();
     }
   }
@@ -76,7 +76,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
 
       msg.setData(data);
 
-      processMessage(msg);
+      enqueue(msg);
       return msg.peekData().getLong(OFFSET);
     }
   }
@@ -94,13 +94,9 @@ class SambaFileClient extends BaseClient implements SmbFile {
   public void close() throws IOException {
     try (final MessageValues messageValues = MessageValues.obtain()) {
       final Message msg = mHandler.obtainMessage(CLOSE, messageValues);
-      processMessage(msg);
+      enqueue(msg);
       messageValues.checkException();
     }
-  }
-
-  protected void processMessage(Message message) {
-    enqueue(message);
   }
 
   private static class SambaFileHandler extends BaseHandler {

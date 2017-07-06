@@ -18,11 +18,11 @@
 #ifndef SAMBADOCUMENTSPROVIDER_SAMBAPROVIDER_H
 #define SAMBADOCUMENTSPROVIDER_SAMBAPROVIDER_H
 
+#include "samba_includes/libsmbclient.h"
 #include "base/Callback.h"
 #include "jni_helper/JniHelper.h"
-#include "samba_includes/libsmbclient.h"
-#include <sys/types.h>
 
+#include <sys/types.h>
 #include <vector>
 
 namespace SambaClient {

@@ -557,7 +557,12 @@ jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek
   SambaClient::SambaClient *client =
           reinterpret_cast<SambaClient::SambaClient*>(pointer);
 
-  return client->SeekFile(fd, offset, whence);
+  jlong result = client->SeekFile(fd, offset, whence);
+  if (result < 0) {
+    throw_new_errno_exception(env, "seek", static_cast<int>(-result));
+  }
+
+  return result;
 }
 
 

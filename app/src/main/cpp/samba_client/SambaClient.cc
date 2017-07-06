@@ -267,7 +267,15 @@ int SambaClient::OpenFile(const char *url, const int flag, const mode_t mode) {
 off_t
 SambaClient::SeekFile(const int fd, const off_t offset, const int whence) {
   LOGV(TAG, "Set offset to %x for file with fd %x", offset, fd);
-  return smbc_lseek(fd, offset, whence);
+
+  off_t result = smbc_lseek(fd, offset, whence);
+  if (result < 0) {
+    int err = errno;
+    LOGE(TAG, "Failed to seek in file %x. Errno: %x", fd, err);
+    return -err;
+  }
+
+  return result;
 }
 
 ssize_t
