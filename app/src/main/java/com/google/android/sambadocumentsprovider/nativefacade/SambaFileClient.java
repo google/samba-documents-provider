@@ -39,14 +39,12 @@ class SambaFileClient extends BaseClient implements SmbFile {
   private static final int SEEK = 4;
   private static final int FSTAT = 5;
 
-  private static final String OFFSET = "offset";
-
   SambaFileClient(Looper looper, SmbFile smbFileImpl) {
     mHandler = new SambaFileHandler(looper, smbFileImpl);
   }
 
   @Override
-  public int read(ByteBuffer buffer) throws IOException {
+  public int read(ByteBuffer buffer, int maxLen) throws IOException {
     try(final MessageValues<ByteBuffer> messageValues = MessageValues.obtain()) {
       messageValues.setObj(buffer);
       final Message msg = mHandler.obtainMessage(READ, messageValues);
@@ -68,16 +66,12 @@ class SambaFileClient extends BaseClient implements SmbFile {
 
   @Override
   public long seek(long offset) throws IOException {
-    try (final MessageValues messageValues = MessageValues.obtain()) {
+    try (final MessageValues<?> messageValues = MessageValues.obtain()) {
       final Message msg = mHandler.obtainMessage(SEEK, messageValues);
-
-      Bundle data = new Bundle();
-      data.putLong(OFFSET, offset);
-
-      msg.setData(data);
+      messageValues.setLong(offset);
 
       enqueue(msg);
-      return msg.peekData().getLong(OFFSET);
+      return messageValues.getLong();
     }
   }
 
@@ -92,7 +86,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
 
   @Override
   public void close() throws IOException {
-    try (final MessageValues messageValues = MessageValues.obtain()) {
+    try (final MessageValues<?> messageValues = MessageValues.obtain()) {
       final Message msg = mHandler.obtainMessage(CLOSE, messageValues);
       enqueue(msg);
       messageValues.checkException();
@@ -115,10 +109,12 @@ class SambaFileClient extends BaseClient implements SmbFile {
       final MessageValues messageValues = (MessageValues) msg.obj;
       try {
         switch (msg.what) {
-          case READ:
+          case READ: {
+            final int maxLen = messageValues.getInt();
             final ByteBuffer readBuffer = (ByteBuffer) messageValues.getObj();
-            messageValues.setInt(mSmbFileImpl.read(readBuffer));
+            messageValues.setInt(mSmbFileImpl.read(readBuffer, maxLen));
             break;
+          }
           case WRITE: {
             final ByteBuffer writeBuffer = (ByteBuffer) messageValues.getObj();
             final int length = msg.arg1;
@@ -129,8 +125,9 @@ class SambaFileClient extends BaseClient implements SmbFile {
             mSmbFileImpl.close();
             break;
           case SEEK:
-            long offset = mSmbFileImpl.seek(msg.peekData().getLong(OFFSET));
-            msg.peekData().putLong(OFFSET, offset);
+            long offset = mSmbFileImpl.seek(messageValues.getLong());
+            messageValues.setLong(offset);
+            break;
           case FSTAT:
             messageValues.setObj(mSmbFileImpl.fstat());
             break;

@@ -61,7 +61,7 @@ public class ReadFileTask extends AsyncTask<Void, Void, Void> {
       int size;
       byte[] buf = new byte[mBuffer.capacity()];
       while ((mSignal == null || !mSignal.isCanceled())
-          && (size = file.read(mBuffer)) > 0) {
+          && (size = file.read(mBuffer, Integer.MAX_VALUE)) > 0) {
         mBuffer.get(buf, 0, size);
         os.write(buf, 0, size);
         mBuffer.clear();

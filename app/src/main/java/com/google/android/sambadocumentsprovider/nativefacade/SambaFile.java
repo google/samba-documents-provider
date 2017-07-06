@@ -19,7 +19,6 @@ package com.google.android.sambadocumentsprovider.nativefacade;
 
 import android.system.ErrnoException;
 import android.system.StructStat;
-import android.util.Log;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -27,15 +26,21 @@ import java.nio.ByteBuffer;
 class SambaFile implements SmbFile {
 
   private final long mNativeHandler;
+
   private int mNativeFd;
+  private long mOffset;
 
   SambaFile(long nativeHandler, int nativeFd) {
     mNativeHandler = nativeHandler;
     mNativeFd = nativeFd;
   }
-  public int read(ByteBuffer buffer) throws IOException {
+
+  public int read(ByteBuffer buffer, int maxLen) throws IOException {
     try {
-      return read(mNativeHandler, mNativeFd, buffer, buffer.capacity());
+      final int bytesRead =
+          read(mNativeHandler, mNativeFd, buffer, Math.min(maxLen, buffer.capacity()));
+      mOffset += bytesRead;
+      return bytesRead;
     } catch(ErrnoException e) {
       throw new IOException("Failed to read file. Fd: " + mNativeFd, e);
     }
@@ -43,15 +48,22 @@ class SambaFile implements SmbFile {
 
   public int write(ByteBuffer buffer, int length) throws IOException {
     try {
-      return write(mNativeHandler, mNativeFd, buffer, length);
+      final int bytesWritten = write(mNativeHandler, mNativeFd, buffer, length);
+      mOffset += bytesWritten;
+      return bytesWritten;
     } catch(ErrnoException e) {
       throw new IOException("Failed to write file. Fd: " + mNativeFd, e);
     }
   }
 
   public long seek(long offset) throws IOException {
+    if (mOffset == offset) {
+      return mOffset;
+    }
+
     try {
-      return seek(mNativeHandler, mNativeFd, offset, 0);
+      mOffset = seek(mNativeHandler, mNativeFd, offset, 0);
+      return mOffset;
     } catch (ErrnoException e) {
       throw new IOException("Failed to move to offset in file. Fd: " + mNativeFd, e);
     }
