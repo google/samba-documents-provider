@@ -58,10 +58,10 @@ class NativeSambaFacade implements SmbClient {
   }
 
   @Override
-  public List<DirectoryEntry> readDir(String uri) throws IOException {
+  public SmbDir openDir(String uri) throws IOException {
     try {
       checkNativeHandler();
-      return readDir(mNativeHandler, uri);
+      return new SambaDir(mNativeHandler, openDir(mNativeHandler, uri));
     } catch (ErrnoException e) {
       throw new IOException("Failed to read directory " + uri, e);
     }
@@ -147,7 +147,7 @@ class NativeSambaFacade implements SmbClient {
 
   private native void nativeDestroy(long handler);
 
-  private native List<DirectoryEntry> readDir(long handler, String uri) throws ErrnoException;
+  private native int openDir(long handler, String uri) throws ErrnoException;
 
   private native StructStat stat(long handler, String uri) throws ErrnoException;
 

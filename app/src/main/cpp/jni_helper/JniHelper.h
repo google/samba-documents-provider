@@ -32,8 +32,8 @@ JNIEXPORT void JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_nativeDestroy(
     JNIEnv *env, jobject instance, jlong pointer);
 
-JNIEXPORT jobject JNICALL
-    Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_readDir(
+JNIEXPORT jint JNICALL
+    Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_openDir(
     JNIEnv *env, jobject instance, jlong pointer, jstring uri_);
 
 JNIEXPORT jobject JNICALL
@@ -64,6 +64,14 @@ JNIEXPORT jint JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_openFile(
     JNIEnv *env, jobject instance, jlong pointer, jstring uri_, jstring mode_);
 
+JNIEXPORT jobject JNICALL
+    Java_com_google_android_sambadocumentsprovider_nativefacade_SambaDir_readDir(
+    JNIEnv *env, jobject instance, jlong pointer, jint fd);
+
+JNIEXPORT void JNICALL
+    Java_com_google_android_sambadocumentsprovider_nativefacade_SambaDir_close(
+    JNIEnv *env, jobject instance, jlong pointer, jint fd);
+
 JNIEXPORT jlong JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_read(
     JNIEnv *env, jobject instance, jlong pointer, jint fd, jobject buffer, jint maxlen);
@@ -74,7 +82,7 @@ JNIEXPORT jlong JNICALL
 
 JNIEXPORT jobject JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_fstat(
-        JNIEnv *env, jobject instance, jlong pointer, jint fd);
+    JNIEnv *env, jobject instance, jlong pointer, jint fd);
 
 JNIEXPORT jlong JNICALL
     Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_write(

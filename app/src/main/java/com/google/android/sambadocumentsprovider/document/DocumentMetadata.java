@@ -27,6 +27,7 @@ import android.util.Log;
 import android.webkit.MimeTypeMap;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -203,11 +204,11 @@ public class DocumentMetadata {
   }
 
   public void loadChildren(SmbClient client) throws IOException {
-    try {
-      List<DirectoryEntry> entries = client.readDir(mUri.toString());
+    try (final SmbDir dir = client.openDir(mUri.toString())) {
 
-      Map<Uri, DocumentMetadata> children = new HashMap<>(entries.size());
-      for (DirectoryEntry entry : entries) {
+      Map<Uri, DocumentMetadata> children = new HashMap<>();
+      DirectoryEntry entry;
+      while ((entry = dir.readDir()) != null) {
         Uri childUri = DocumentMetadata.buildChildUri(mUri, entry);
         if (childUri != null) {
           children.put(childUri, new DocumentMetadata(childUri, entry));

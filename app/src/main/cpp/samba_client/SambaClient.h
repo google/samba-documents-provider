@@ -35,7 +35,11 @@ class SambaClient {
 
   bool Init(const bool debug, const CredentialCache *credentialCache);
 
-  int ReadDir(const char *url, const Callback<struct ::smbc_dirent*> &entryHandler);
+  int OpenDir(const char *url);
+
+  int ReadDir(const int dh, const struct smbc_dirent** dirent);
+
+  int CloseDir(const int dh);
 
   int Stat(const char *url, struct stat *st);
 

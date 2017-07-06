@@ -77,8 +77,8 @@ class SambaFacadeClient extends BaseClient implements SmbFacade {
   }
 
   @Override
-  public List<DirectoryEntry> readDir(String uri) throws IOException {
-    try (final MessageValues<List<DirectoryEntry>> messageValues = MessageValues.obtain()) {
+  public SmbDir openDir(String uri) throws IOException {
+    try (final MessageValues<SmbDir> messageValues = MessageValues.obtain()) {
       final Message msg = obtainMessage(READ_DIR, messageValues, uri);
       enqueue(msg);
       return messageValues.getObj();
@@ -195,7 +195,7 @@ class SambaFacadeClient extends BaseClient implements SmbFacade {
             mClientImpl.reset();
             break;
           case READ_DIR:
-            messageValues.setObj(mClientImpl.readDir(uri));
+            messageValues.setObj(mClientImpl.openDir(uri));
             break;
           case STAT:
             messageValues.setObj(mClientImpl.stat(uri));

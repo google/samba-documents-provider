@@ -130,31 +130,40 @@ static const char* getTypeName(unsigned int smbc_type) {
 }
 
 int
-SambaClient::ReadDir(
-    const char *url, const Callback<struct smbc_dirent*> &entryHandler) {
-  LOGD(TAG, "Reading dir at %s.", url);
-  const int dir = smbc_opendir(url);
-  if (dir < 0) {
+SambaClient::OpenDir(const char *url) {
+  LOGD(TAG, "Opening dir at %s.", url);
+  const int fd = smbc_opendir(url);
+  if (fd < 0) {
     int err = errno;
     LOGE(TAG, "Failed to open dir at %s. Errno: %x", url, err);
     return -err;
   }
 
-  struct smbc_dirent *dirent = NULL;
-  while ((dirent = smbc_readdir(dir)) != NULL) {
-    LOGV(TAG, "Found entry name: %s, comment: %s, type: %s.",
-         dirent->name, dirent->comment, getTypeName(dirent->smbc_type));
-    if (entryHandler(dirent) < 0) {
-      // Java exceptions.
-      smbc_closedir(dir);
-      return -1;
-    }
-  }
+  return fd;
+}
 
-  const int ret = smbc_closedir(dir);
+int
+SambaClient::ReadDir(const int dh, const struct smbc_dirent ** dirent) {
+  LOGD(TAG, "Reading dir for %x.", dh);
+  *dirent = smbc_readdir(dh);
+  if (*dirent == NULL) {
+    LOGV(TAG, "Finished reading dir ent for %x.", dh);
+  } else {
+    LOGV(TAG, "Found entry name: %s, comment: %s, type: %s.",
+         (*dirent)->name, (*dirent)->comment, getTypeName((*dirent)->smbc_type));
+  }
+  return 0;
+}
+
+int
+SambaClient::CloseDir(const int dh) {
+  LOGD(TAG, "Close dir for %x.", dh);
+  const int ret = smbc_closedir(dh);
+
   if (ret) {
     int err = errno;
-    LOGW(TAG, "Failed to close dir %d at %s. Errno: %x.", dir, url, err);
+    LOGW(TAG, "Failed to close dir with dh %x. Errno: %x.", dh, err);
+    return -err;
   }
 
   return 0;

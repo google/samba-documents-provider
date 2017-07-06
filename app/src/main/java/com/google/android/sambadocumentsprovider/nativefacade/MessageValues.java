@@ -34,6 +34,7 @@ class MessageValues<T> implements AutoCloseable {
 
   private volatile T mObj;
   private volatile int mInt;
+  private volatile long mLong;
   private volatile IOException mException;
   private volatile RuntimeException mRuntimeException;
 
@@ -62,6 +63,15 @@ class MessageValues<T> implements AutoCloseable {
     return mInt;
   }
 
+  long getLong() throws IOException {
+    checkException();
+    return mLong;
+  }
+
+  void setLong(long value) {
+    mLong = value;
+  }
+
   void setInt(int value) {
     mInt = value;
   }
@@ -87,6 +97,7 @@ class MessageValues<T> implements AutoCloseable {
   public void close() {
     mObj = null;
     mInt = 0;
+    mLong = 0L;
     mException = null;
     mRuntimeException = null;
     POOL.release(this);

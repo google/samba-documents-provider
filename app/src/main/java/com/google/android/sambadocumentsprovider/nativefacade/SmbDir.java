@@ -17,28 +17,13 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
-import android.system.StructStat;
+import android.support.annotation.Nullable;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
+import java.io.Closeable;
 import java.io.IOException;
-import java.util.List;
 
-public interface SmbClient {
+public interface SmbDir extends Closeable {
 
-  void reset();
+  @Nullable DirectoryEntry readDir() throws IOException;
 
-  SmbDir openDir(String uri) throws IOException;
-
-  StructStat stat(String uri) throws IOException;
-
-  void createFile(String uri) throws IOException;
-
-  void mkdir(String uri) throws IOException;
-
-  void rename(String uri, String newUri) throws IOException;
-
-  void unlink(String uri) throws IOException;
-
-  void rmdir(String uri) throws IOException;
-
-  SmbFile openFile(String uri, String mode) throws IOException;
 }

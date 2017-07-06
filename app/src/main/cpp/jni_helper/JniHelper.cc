@@ -97,40 +97,6 @@ create_directory_entry(JNIEnv* env, const struct smbc_dirent &ent) {
   return entry;
 }
 
-static jobject create_array_list(JNIEnv* env) {
-  static const jclass arrayListClass =
-      classCache_.get(env, "java/util/ArrayList");
-  static const jmethodID arrayListConstructor =
-      env->GetMethodID(arrayListClass, "<init>", "()V");
-
-  return env->NewObject(arrayListClass, arrayListConstructor);
-}
-
-static void
-add_object_to_array_list(JNIEnv *env, jobject arrayList, jobject obj) {
-  static const jclass arrayListClass =
-      classCache_.get(env, "java/util/ArrayList");
-  static const jmethodID addMethod =
-      env->GetMethodID(arrayListClass, "add", "(Ljava/lang/Object;)Z");
-
-  env->CallBooleanMethod(arrayList, addMethod, obj);
-}
-
-static int add_dir_entry_to_array_list(
-    JniContext<jobject> context, struct smbc_dirent* dirent) {
-  jobject entry = create_directory_entry(context.env, *dirent);
-  if (entry == NULL) {
-    return -1;
-  }
-  add_object_to_array_list(context.env, context.instance, entry);
-  if (context.env->ExceptionCheck()) {
-    return -1;
-  }
-  // We're done with this entry, remove local ref to avoid leak.
-  context.env->DeleteLocalRef(entry);
-  return 0;
-}
-
 static void
 throw_new_file_not_found_exception(JNIEnv *env, const char *fmt, ...) {
   char message[256];
@@ -184,36 +150,20 @@ throw_new_auth_failed_exception(JNIEnv* env) {
   env->Throw(authFailedException);
 }
 
-jobject
-Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_readDir(
+jint
+Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_openDir(
     JNIEnv *env, jobject instance, jlong pointer, jstring uri_) {
   const char *uri = env->GetStringUTFChars(uri_, 0);
   if (uri == NULL) {
-    return NULL;
+    return -1;
   }
 
-  jobject arrayList = create_array_list(env);
-  if (arrayList == NULL) {
-    // Java exception happened.
-    env->ReleaseStringUTFChars(uri_, uri);
-    return NULL;
-  }
-
-  JniContext<jobject> context(env, arrayList);
   SambaClient::SambaClient *client =
       reinterpret_cast<SambaClient::SambaClient *>(pointer);
-  int result = client->ReadDir(
-      uri,
-      JniCallback<jobject, struct smbc_dirent*>(
-          context, add_dir_entry_to_array_list));
+  int fd = client->OpenDir(uri);
 
-  if (env->ExceptionCheck()) {
-    // Java exception happened.
-    goto bail;
-  }
-
-  if (result < 0) {
-    int err = -result;
+  if (fd < 0) {
+    int err = -fd;
     switch (err) {
       case ENODEV:
       case ENOENT:
@@ -226,14 +176,13 @@ Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_re
         throw_new_auth_failed_exception(env);
         break;
       default:
-        throw_new_errno_exception(env, "readDir", err);
+        throw_new_errno_exception(env, "openDir", err);
     }
   }
 
-  bail:
   env->ReleaseStringUTFChars(uri_, uri);
 
-  return arrayList;
+  return fd;
 }
 
 static jobject create_structstat(JNIEnv *env, const struct stat &st) {
@@ -527,21 +476,52 @@ Java_com_google_android_sambadocumentsprovider_nativefacade_NativeSambaFacade_op
   return fd;
 }
 
+jobject Java_com_google_android_sambadocumentsprovider_nativefacade_SambaDir_readDir(
+    JNIEnv *env, jobject instance, jlong pointer, jint dh) {
+  SambaClient::SambaClient *client =
+      reinterpret_cast<SambaClient::SambaClient*>(pointer);
+
+  const struct smbc_dirent* dirent;
+
+  int result = client->ReadDir(dh, &dirent);
+  if (result < 0) {
+    throw_new_errno_exception(env, "readDir", -result);
+    return NULL;
+  }
+
+  if (dirent == NULL) {
+    // This is a normal case, indicating that we finished reading this directory.
+    return NULL;
+  }
+
+  return create_directory_entry(env, *dirent);
+}
+
+void Java_com_google_android_sambadocumentsprovider_nativefacade_SambaDir_close(
+    JNIEnv *env, jobject instance, jlong pointer, jint dh) {
+  SambaClient::SambaClient *client =
+      reinterpret_cast<SambaClient::SambaClient*>(pointer);
+
+  int result = client->CloseDir(dh);
+  if (result < 0) {
+    throw_new_errno_exception(env, "close", -result);
+  }
+}
+
 jobject Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_fstat(
         JNIEnv *env,
         jobject instance,
         jlong pointer,
         jint fd) {
   SambaClient::SambaClient *client =
-          reinterpret_cast<SambaClient::SambaClient*>(pointer);
-
-  jobject stat = NULL;
+      reinterpret_cast<SambaClient::SambaClient*>(pointer);
 
   struct stat st;
 
   int result = client->Fstat(fd, &st);
   if (result < 0) {
     throw_new_errno_exception(env, "stat", -result);
+    return NULL;
   }
 
   return create_structstat(env, st);
@@ -555,7 +535,7 @@ jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek
     jlong offset,
     jint whence) {
   SambaClient::SambaClient *client =
-          reinterpret_cast<SambaClient::SambaClient*>(pointer);
+      reinterpret_cast<SambaClient::SambaClient*>(pointer);
 
   jlong result = client->SeekFile(fd, offset, whence);
   if (result < 0) {
@@ -564,8 +544,6 @@ jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_seek
 
   return result;
 }
-
-
 
 jlong Java_com_google_android_sambadocumentsprovider_nativefacade_SambaFile_read(
     JNIEnv *env,
