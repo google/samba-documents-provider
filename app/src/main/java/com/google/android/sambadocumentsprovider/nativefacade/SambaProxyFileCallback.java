@@ -54,7 +54,7 @@ class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
             Log.e(TAG, "Failed to get size for file");
         }
 
-        return  0;
+        return 0;
     }
 
     @Override
