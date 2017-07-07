@@ -84,7 +84,7 @@ class SambaFacadeClient extends BaseClient implements SmbFacade {
     try (final MessageValues<SmbDir> messageValues = MessageValues.obtain()) {
       final Message msg = obtainMessage(READ_DIR, messageValues, uri);
       enqueue(msg);
-      return messageValues.getObj();
+      return new SambaDirClient(mHandler.getLooper(), messageValues.getObj());
     }
   }
 
