@@ -18,12 +18,16 @@
 package com.google.android.sambadocumentsprovider.provider;
 
 import android.annotation.TargetApi;
+import android.net.Uri;
 import android.os.CancellationSignal;
 import android.os.ProxyFileDescriptorCallback;
+import android.support.annotation.Nullable;
 import android.system.ErrnoException;
+import android.system.OsConstants;
 import android.system.StructStat;
 import android.util.Log;
 
+import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
 
 import java.io.ByteArrayOutputStream;
@@ -34,16 +38,21 @@ import java.nio.ByteBuffer;
 public class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
   private static final String TAG = "SambaProxyFileCallback";
 
+  private final String mUri;
   private final SmbFile mFile;
   private final ByteBufferPool mBufferPool;
-  private final CancellationSignal mSignal;
+  private final @Nullable OnTaskFinishedCallback<String> mCallback;
 
   public SambaProxyFileCallback(
-      SmbFile file, ByteBufferPool bufferPool, CancellationSignal signal) {
+      String uri,
+      SmbFile file,
+      ByteBufferPool bufferPool,
+      @Nullable OnTaskFinishedCallback<String> callback) {
 
+    mUri = uri;
     mFile = file;
     mBufferPool = bufferPool;
-    mSignal = signal;
+    mCallback = callback;
   }
 
   @Override
@@ -53,7 +62,7 @@ public class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
       stat = mFile.fstat();
       return stat.st_size;
     } catch (IOException e) {
-      Log.e(TAG, "Failed to get size for file", e);
+      throwErrnoException(e);
     }
 
     return 0;
@@ -67,20 +76,15 @@ public class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
 
       int readSize;
       int total = 0;
-      while ((mSignal == null || !mSignal.isCanceled())
-          && (readSize = mFile.read(buffer, size - total)) > 0) {
-        final int len = Math.min(size - total, readSize);
-        buffer.get(data, total, len);
+      while (size > total && (readSize = mFile.read(buffer, size - total)) > 0) {
+        buffer.get(data, total, readSize);
         buffer.clear();
-        total += len;
-        if (total >= size) {
-          break;
-        }
+        total += readSize;
       }
 
-      return Math.min(size, total);
+      return total;
     } catch (IOException e) {
-      e.printStackTrace();
+      throwErrnoException(e);
     } finally {
       mBufferPool.recycleBuffer(buffer);
     }
@@ -96,8 +100,7 @@ public class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
     try {
       mFile.seek(offset);
 
-      while ((mSignal == null || !mSignal.isCanceled())
-          && written < size) {
+      while (written < size) {
         int willWrite = Math.min(size - written, buffer.capacity());
         buffer.put(data, written, willWrite);
         int res = mFile.write(buffer, willWrite);
@@ -105,7 +108,7 @@ public class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
         buffer.clear();
       }
     } catch (IOException e) {
-      Log.e(TAG, "Failed to write file.", e);
+      throwErrnoException(e);
     } finally {
       mBufferPool.recycleBuffer(buffer);
     }
@@ -114,11 +117,30 @@ public class SambaProxyFileCallback extends ProxyFileDescriptorCallback {
   }
 
   @Override
+  public void onFsync() throws ErrnoException {
+    // Nothing to do
+  }
+
+  @Override
   public void onRelease() {
     try {
       mFile.close();
     } catch (IOException e) {
       Log.e(TAG, "Failed to close file", e);
+    }
+
+    if (mCallback != null) {
+      mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, mUri, null);
+    }
+  }
+
+  private void throwErrnoException(IOException e) throws ErrnoException {
+    // Hack around that SambaProxyFileCallback throws ErrnoException rather than IOException
+    // assuming the underlying cause is an ErrnoException.
+    if (e.getCause() instanceof ErrnoException) {
+      throw (ErrnoException) e.getCause();
+    } else {
+      throw new ErrnoException("I/O", OsConstants.EIO, e);
     }
   }
 }

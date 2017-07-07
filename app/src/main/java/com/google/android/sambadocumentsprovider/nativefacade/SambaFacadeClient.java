@@ -17,6 +17,7 @@
 
 package com.google.android.sambadocumentsprovider.nativefacade;
 
+import android.annotation.TargetApi;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.Looper;
@@ -24,9 +25,11 @@ import android.os.Message;
 import android.os.ParcelFileDescriptor;
 import android.os.storage.StorageManager;
 import android.support.annotation.IntDef;
+import android.support.annotation.Nullable;
 import android.system.StructStat;
 
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
+import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.provider.ByteBufferPool;
 import com.google.android.sambadocumentsprovider.provider.SambaProxyFileCallback;
 
@@ -146,16 +149,17 @@ class SambaFacadeClient extends BaseClient implements SmbFacade {
   }
 
   @Override
+  @TargetApi(26)
   public ParcelFileDescriptor openProxyFile(
-          String uri,
-          String mode,
-          StorageManager storageManager,
-          ByteBufferPool bufferPool,
-         CancellationSignal signal) throws IOException {
+      String uri,
+      String mode,
+      StorageManager storageManager,
+      ByteBufferPool bufferPool,
+      @Nullable OnTaskFinishedCallback<String> callback) throws IOException {
     SambaFile file = openFileRaw(uri, mode);
     return storageManager.openProxyFileDescriptor(
             ParcelFileDescriptor.parseMode(mode),
-            new SambaProxyFileCallback(file, bufferPool, signal),
+            new SambaProxyFileCallback(uri, file, bufferPool, callback),
             mHandler);
   }
 
@@ -166,8 +170,8 @@ class SambaFacadeClient extends BaseClient implements SmbFacade {
     }
   }
 
-  private Message obtainMessageForOpenFile(String uri, String mode,
-                                           MessageValues<SambaFile> messageValues) {
+  private Message obtainMessageForOpenFile(
+      String uri, String mode, MessageValues<SambaFile> messageValues) {
     final Message msg = obtainMessage(OPEN_FILE, messageValues, uri);
     msg.peekData().putString(MODE, mode);
     return msg;

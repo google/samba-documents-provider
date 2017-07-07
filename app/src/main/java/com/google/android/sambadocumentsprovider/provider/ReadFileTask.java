@@ -35,17 +35,15 @@ public class ReadFileTask extends AsyncTask<Void, Void, Void> {
   private final String mUri;
   private final SmbClient mClient;
   private final ParcelFileDescriptor mPfd;
-  private final CancellationSignal mSignal;
   private final ByteBufferPool mBufferPool;
 
   private ByteBuffer mBuffer;
 
   ReadFileTask(String uri, SmbClient client, ParcelFileDescriptor pfd,
-      ByteBufferPool bufferPool, @Nullable CancellationSignal signal) {
+      ByteBufferPool bufferPool) {
     mUri = uri;
     mClient = client;
     mPfd = pfd;
-    mSignal = signal;
     mBufferPool = bufferPool;
   }
 
@@ -60,8 +58,7 @@ public class ReadFileTask extends AsyncTask<Void, Void, Void> {
         final SmbFile file = mClient.openFile(mUri, "r")) {
       int size;
       byte[] buf = new byte[mBuffer.capacity()];
-      while ((mSignal == null || !mSignal.isCanceled())
-          && (size = file.read(mBuffer, Integer.MAX_VALUE)) > 0) {
+      while ((size = file.read(mBuffer, Integer.MAX_VALUE)) > 0) {
         mBuffer.get(buf, 0, size);
         os.write(buf, 0, size);
         mBuffer.clear();

@@ -36,7 +36,6 @@ public class WriteFileTask extends AsyncTask<Void, Void, Void> {
   private final String mUri;
   private final SmbClient mClient;
   private final ParcelFileDescriptor mPfd;
-  private final CancellationSignal mSignal;
   private final OnTaskFinishedCallback<String> mCallback;
   private final ByteBufferPool mBufferPool;
   private final ByteBuffer mBuffer;
@@ -45,12 +44,10 @@ public class WriteFileTask extends AsyncTask<Void, Void, Void> {
       SmbClient service,
       ParcelFileDescriptor pfd,
       ByteBufferPool bufferPool,
-      @Nullable CancellationSignal signal,
       OnTaskFinishedCallback<String> callback) {
     mUri = uri;
     mClient = service;
     mPfd = pfd;
-    mSignal = signal;
     mCallback = callback;
 
     mBufferPool = bufferPool;
@@ -63,8 +60,7 @@ public class WriteFileTask extends AsyncTask<Void, Void, Void> {
         final SmbFile file = mClient.openFile(mUri, "w")){
       int size;
       byte[] buf = new byte[mBuffer.capacity()];
-      while ((mSignal == null || !mSignal.isCanceled())
-          && (size = is.read(buf)) > 0) {
+      while ((size = is.read(buf)) > 0) {
         mBuffer.put(buf, 0, size);
         file.write(mBuffer, size);
         mBuffer.clear();

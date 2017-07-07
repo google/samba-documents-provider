@@ -556,45 +556,54 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     Log.d(TAG, "Opening document " + documentId + " with mode " + mode);
 
     try {
-      if (!"r".equals(mode) && !"w".equals(mode)) {
-        throw new UnsupportedOperationException("Mode " + mode + " is not supported");
-      }
-
       final String uri = toUriString(documentId);
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        OnTaskFinishedCallback<String> callback =
+            mode.contains("w") ? mWriteFinishedCallback : null;
         return mClient.openProxyFile(
                 uri,
                 mode,
                 mStorageManager,
                 mBufferPool,
-                cancellationSignal);
+                callback);
+      } else {
+        return openDocumentPreO(uri, mode);
       }
 
-      ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createReliablePipe();
-      switch (mode) {
-        case "r": {
-          final ReadFileTask task = new ReadFileTask(
-              uri, mClient, pipe[1], mBufferPool, cancellationSignal);
-          mTaskManager.runIoTask(task);
-        }
-        return pipe[0];
-        case "w": {
-          final WriteFileTask task = new WriteFileTask(uri, mClient, pipe[0], mBufferPool,
-              cancellationSignal, mWriteFinishedCallback);
-          mTaskManager.runIoTask(task);
-          return pipe[1];
-        }
-        default:
-          // Should never happen.
-          pipe[0].close();
-          pipe[1].close();
-          throw new UnsupportedOperationException("Mode " + mode + " is not supported.");
-      }
     } catch(FileNotFoundException e) {
       throw e;
     } catch (IOException e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  private ParcelFileDescriptor openDocumentPreO(String uri, String mode) throws IOException {
+
+    // Doesn't support complex mode on pre-O devices.
+    if (!"r".equals(mode) && !"w".equals(mode)) {
+      throw new UnsupportedOperationException("Mode " + mode + " is not supported");
+    }
+
+    ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createReliablePipe();
+    switch (mode) {
+      case "r": {
+        final ReadFileTask task = new ReadFileTask(
+            uri, mClient, pipe[1], mBufferPool);
+        mTaskManager.runIoTask(task);
+      }
+      return pipe[0];
+      case "w": {
+        final WriteFileTask task =
+            new WriteFileTask(uri, mClient, pipe[0], mBufferPool, mWriteFinishedCallback);
+        mTaskManager.runIoTask(task);
+        return pipe[1];
+      }
+      default:
+        // Should never happen.
+        pipe[0].close();
+        pipe[1].close();
+        throw new UnsupportedOperationException("Mode " + mode + " is not supported.");
     }
   }
 
