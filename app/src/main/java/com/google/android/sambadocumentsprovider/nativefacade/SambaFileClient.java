@@ -46,6 +46,7 @@ class SambaFileClient extends BaseClient implements SmbFile {
   @Override
   public int read(ByteBuffer buffer, int maxLen) throws IOException {
     try(final MessageValues<ByteBuffer> messageValues = MessageValues.obtain()) {
+      messageValues.setInt(maxLen);
       messageValues.setObj(buffer);
       final Message msg = mHandler.obtainMessage(READ, messageValues);
       enqueue(msg);
