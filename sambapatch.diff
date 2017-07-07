@@ -1,9 +1,16 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..0d20b64
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1 @@
++*.pyc
 diff --git a/build_answers b/build_answers
 new file mode 100644
-index 0000000..8328778
+index 0000000..d5a933e
 --- /dev/null
 +++ b/build_answers
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,39 @@
 +Checking uname sysname type: "Linux"
 +Checking uname machine type: "arm"
 +Checking uname release type: "Linux"
@@ -42,6 +49,7 @@ index 0000000..8328778
 +getcwd takes a NULL argument: OK
 +Checking for HAVE_IFACE_IFCONF: FAIL
 +Checking whether we can use Linux thread-specific credentials: FAIL
++Checking whether fcntl lock supports open file description locks: FAIL
 diff --git a/buildtools/wafsamba/wafsamba.py b/buildtools/wafsamba/wafsamba.py
 index 4a47dbf..3b46b1b 100644
 --- a/buildtools/wafsamba/wafsamba.py
@@ -103,7 +111,7 @@ index 4a47dbf..3b46b1b 100644
          return
 diff --git a/cc_shim.py b/cc_shim.py
 new file mode 100755
-index 0000000..39c8b73
+index 0000000..1551fe4
 --- /dev/null
 +++ b/cc_shim.py
 @@ -0,0 +1,39 @@
@@ -117,7 +125,7 @@ index 0000000..39c8b73
 +
 +armv7_flags=["-march=armv7-a", "-mfloat-abi=softfp", "-mfpu=vfpv3-d16", "-Wl,--fix-cortex-a8"]
 +
-+match_pattern=[r'.*asn1/gen_template.*\.o', r'.*compile_et.*\.o', r'.*print_version.*\.o', r'.*version_129\.o']
++match_pattern=[r'.*asn1/gen_template.*\.o', r'.*compile_et.*\.o', r'.*print_version.*\.o', r'.*version_128\.o']
 +
 +match_pattern=[re.compile(pattern) for pattern in match_pattern]
 +
@@ -158,10 +166,10 @@ index 0000000..0da1e32
 +WAF_MAKE=1 python $CWD/buildtools/bin/waf build --targets=smbclient $*
 diff --git a/configure.sh b/configure.sh
 new file mode 100755
-index 0000000..64abcc3
+index 0000000..467c56d
 --- /dev/null
 +++ b/configure.sh
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,54 @@
 +#!/bin/bash
 +CWD=$(pwd)
 +
@@ -172,10 +180,12 @@ index 0000000..64abcc3
 +ANDROID_VER=21
 +TOOLCHAIN_VER=4.9
 +
++TOOLCHAIN=$CWD/bin/ndk/toolchain
++
 +# Flags for 32-bit ARM
 +#ABI=arm-linux-androideabi
-+#PLATFORM_ARCH=arch-arm
-+#CMD_PREFIX=arm-linux-androideabi
++#PLATFORM_ARCH=arm
++#TRIPLE=arm-linux-androideabi
 +
 +# Flags for ARM v7 used with flags for 32-bit ARM to compile for ARMv7
 +#COMPILER_FLAG="-march=armv7-a -mfloat-abi=softfp -mfpu=vfpv3-d16"
@@ -183,29 +193,37 @@ index 0000000..64abcc3
 +
 +# Flags for 64-bit ARM v8
 +ABI=aarch64-linux-android
-+PLATFORM_ARCH=arch-arm64
-+CMD_PREFIX=aarch64-linux-android
++PLATFORM_ARCH=arm64
++TRIPLE=aarch64-linux-android
 +
 +# Flags for x86
 +#ABI=x86
-+#PLATFORM_ARCH=arch-x86
-+#CMD_PREFIX=i686-linux-android
++#PLATFORM_ARCH=x86
++#TRIPLE=i686-linux-android
 +
 +# Flags for x86_64
 +#ABI=x86_64
-+#PLATFORM_ARCH=arch-x86_64
-+#CMD_PREFIX=x86_64-linux-android
++#PLATFORM_ARCH=x86_64
++#TRIPLE=x86_64-linux-android
 +
-+TOOLCHAIN=$NDK/toolchains/$ABI-$TOOLCHAIN_VER/prebuilt/$HOST/bin
-+export CC="$CWD/cc_shim.py $TOOLCHAIN/$CMD_PREFIX-gcc"
-+export AR=$TOOLCHAIN/$CMD_PREFIX-ar
-+export RANLIB=$TOOLCHAIN/$CMD_PREFIX-ranlib
++export CC="$CWD/cc_shim.py $TOOLCHAIN/bin/clang"
++export AR=$TOOLCHAIN/$TRIPLE-ar
++export RANLIB=$TOOLCHAIN/$TRIPLE-ranlib
 +
-+ANDROID_SYSROOT=$NDK/platforms/android-$ANDROID_VER/$PLATFORM_ARCH
-+export CFLAGS="--sysroot=$ANDROID_SYSROOT $COMPILER_FLAG -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-all -fPIE -Wa,--noexecstack -Wformat -Wformat-security"
-+export LDFLAGS="--sysroot=$ANDROID_SYSROOT $LINKER_FLAG -pie -Wl,-z,relro,-z,now"
++COMPILE_SYSROOT=$TOOLCHAIN/sysroot
++export CFLAGS="--sysroot=$COMPILE_SYSROOT $COMPILER_FLAG -O2 -D_FORTIFY_SOURCE=2 -D__ANDROID_API__=$ANDROID_VER -D__USE_FILE_OFFSET64=1 -fstack-protector-all -fPIE -Wa,--noexecstack -Wformat -Wformat-security"
 +
-+$CWD/configure --host=$ABI --without-ads --without-ldap --without-acl-support --without-ad-dc --cross-compile --cross-answers=build_answers --prefix=$CWD/out
++LINK_SYSROOT=$NDK/platforms/android-$ANDROID_VER/arch-$PLATFORM_ARCH
++export LDFLAGS="--sysroot=$LINK_SYSROOT $LINKER_FLAG -Wl,-z,relro,-z,now"
++
++# Create standalone tool chain
++rm -rf $TOOLCHAIN
++echo "Creating standalone toolchain..."
++$NDK/build/tools/make_standalone_toolchain.py --arch $PLATFORM_ARCH --api $ANDROID_VER --install-dir $TOOLCHAIN --unified-headers
++
++# Configure Samba build
++echo "Configuring Samba..."
++$CWD/configure --hostcc=$(which gcc) --without-ads --without-ldap --without-acl-support --without-ad-dc --cross-compile --cross-answers=build_answers --prefix=$CWD/out
 diff --git a/install.sh b/install.sh
 new file mode 100755
 index 0000000..d6cb17a
@@ -716,6 +734,21 @@ index cc71b9e..c695f46 100644
  		wbcFreeMemory(pwd);
  		BAIL_ON_PTR_ERROR(name, wbc_status);
  	}
+diff --git a/nsswitch/winbind_struct_protocol.h b/nsswitch/winbind_struct_protocol.h
+index 84829d2..15a7c80 100644
+--- a/nsswitch/winbind_struct_protocol.h
++++ b/nsswitch/winbind_struct_protocol.h
+@@ -23,6 +23,10 @@ typedef char fstring[FSTRING_LEN];
+ #ifndef _WINBINDD_NTDOM_H
+ #define _WINBINDD_NTDOM_H
+ 
++#ifdef pw_gecos
++#undef pw_gecos
++#endif
++
+ #define WINBINDD_SOCKET_NAME "pipe"            /* Name of PF_UNIX socket */
+ 
+ /* We let the build environment set the public winbindd socket
 diff --git a/source3/lib/dumpcore.c b/source3/lib/dumpcore.c
 index c72aa88..5bee67a 100644
 --- a/source3/lib/dumpcore.c

@@ -7,7 +7,7 @@ This app is built on top of Samba 4.5.1.
 
 ## Setup
 ### Prerequisite
-Android SDK and NDK r13b or above are required to build this app. Android Studio is highly
+Android SDK and NDK r15b or above are required to build this app. Android Studio is highly
 recommended.
 
 ### Build Steps
