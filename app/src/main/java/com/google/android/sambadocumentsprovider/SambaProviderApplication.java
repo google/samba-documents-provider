@@ -76,6 +76,8 @@ public class SambaProviderApplication extends Application {
     // hosts -- hosts file and DNS resolution
     // bcast -- NetBIOS broadcast
     mSambaConf.addConfiguration("name resolve order", "wins bcast hosts");
+
+    mSambaConf.addConfiguration("client max protocol", "SMB3");
     mSambaConf.flushAsDefault(new OnConfigurationChangedListener() {
       @Override
       public void onConfigurationChanged() {
