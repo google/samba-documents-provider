@@ -77,7 +77,10 @@ public class SambaProviderApplication extends Application {
     // hosts -- hosts file and DNS resolution
     // bcast -- NetBIOS broadcast
     mSambaConf.addConfiguration("name resolve order", "wins bcast hosts");
+
+    // Urge from users to disable SMB1 by default.
     mSambaConf.addConfiguration("client min protocol", "SMB2");
+    mSambaConf.addConfiguration("client max protocol", "SMB3");
     mSambaConf.flushAsDefault(new OnConfigurationChangedListener() {
       @Override
       public void onConfigurationChanged() {
