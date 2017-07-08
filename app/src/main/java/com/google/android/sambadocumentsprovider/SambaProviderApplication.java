@@ -17,6 +17,8 @@
 
 package com.google.android.sambadocumentsprovider;
 
+import static android.content.ContentValues.TAG;
+
 import android.app.Application;
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -25,11 +27,13 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 
+import android.util.Log;
 import com.google.android.sambadocumentsprovider.SambaConfiguration.OnConfigurationChangedListener;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.nativefacade.CredentialCache;
 import com.google.android.sambadocumentsprovider.nativefacade.SambaMessageLooper;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
+import java.io.File;
 
 public class SambaProviderApplication extends Application {
 
@@ -37,9 +41,6 @@ public class SambaProviderApplication extends Application {
   private final TaskManager mTaskManager = new TaskManager();
 
   private SmbFacade mSambaClient;
-  private CredentialCache mCredentialCache;
-
-  private SambaConfiguration mSambaConf;
   private ShareManager mShareManager;
 
   @Override
@@ -47,10 +48,6 @@ public class SambaProviderApplication extends Application {
     super.onCreate();
 
     init(this);
-  }
-
-  public static void init(Context context) {
-    ((SambaProviderApplication) context.getApplicationContext()).initialize(context);
   }
 
   private void initialize(Context context) {
@@ -62,30 +59,38 @@ public class SambaProviderApplication extends Application {
     initializeSambaConf(context);
 
     final SambaMessageLooper looper = new SambaMessageLooper();
-    mCredentialCache = looper.getCredentialCache();
+    CredentialCache credentialCache = looper.getCredentialCache();
     mSambaClient = looper.getClient();
 
-    mShareManager = new ShareManager(context, mCredentialCache);
+    mShareManager = new ShareManager(context, credentialCache);
 
     registerNetworkCallback(context);
   }
 
   private void initializeSambaConf(Context context) {
-    mSambaConf = new SambaConfiguration(context.getDir("home", MODE_PRIVATE));
+    final File home = context.getDir("home", MODE_PRIVATE);
+    final File share = context.getExternalFilesDir(null);
+    final SambaConfiguration sambaConf = new SambaConfiguration(home, share);
 
-    // lmhosts are not used in SambaDocumentsProvider and prioritize bcast because sometimes in home
-    // settings DNS will resolve unknown domain name to a specific IP for advertisement.
-    //
-    // lmhosts -- lmhosts file if existed side by side to smb.conf
-    // wins -- Windows Internet Name Service
-    // hosts -- hosts file and DNS resolution
-    // bcast -- NetBIOS broadcast
-    mSambaConf.addConfiguration("name resolve order", "wins bcast hosts");
+    final OnConfigurationChangedListener listener = new OnConfigurationChangedListener() {
+      @Override
+      public void onConfigurationChanged() {
+        if (mSambaClient != null) {
+          mSambaClient.reset();
+        }
+      }
+    };
 
-    // Urge from users to disable SMB1 by default.
-    mSambaConf.addConfiguration("client min protocol", "SMB2");
-    mSambaConf.addConfiguration("client max protocol", "SMB3");
-    mSambaConf.flushAsDefault();
+    // Sync from external folder. The reason why we don't use external folder directly as HOME is
+    // because there are cases where external storage is not ready, and we don't have an external
+    // folder at all.
+    if (sambaConf.syncFromExternal(listener)) {
+      if (BuildConfig.DEBUG) Log.d(TAG, "Syncing smb.conf from external folder. No need to try "
+          + "flushing default config.");
+      return;
+    }
+
+    sambaConf.flushDefault(listener);
   }
 
   private void registerNetworkCallback(Context context) {
@@ -102,7 +107,10 @@ public class SambaProviderApplication extends Application {
             mSambaClient.reset();
           }
         });
+  }
 
+  public static void init(Context context) {
+    getApplication(context).initialize(context);
   }
 
   public static ShareManager getServerManager(Context context) {
