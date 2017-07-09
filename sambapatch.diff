@@ -166,7 +166,7 @@ index 0000000..0da1e32
 +WAF_MAKE=1 python $CWD/buildtools/bin/waf build --targets=smbclient $*
 diff --git a/configure.sh b/configure.sh
 new file mode 100755
-index 0000000..467c56d
+index 0000000..7d009da
 --- /dev/null
 +++ b/configure.sh
 @@ -0,0 +1,54 @@
@@ -177,7 +177,7 @@ index 0000000..467c56d
 +
 +HOST=linux-x86_64
 +
-+ANDROID_VER=21
++ANDROID_VER=23
 +TOOLCHAIN_VER=4.9
 +
 +TOOLCHAIN=$CWD/bin/ndk/toolchain
