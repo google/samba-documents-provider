@@ -158,7 +158,7 @@ index 0000000..0da1e32
 +WAF_MAKE=1 python $CWD/buildtools/bin/waf build --targets=smbclient $*
 diff --git a/configure.sh b/configure.sh
 new file mode 100755
-index 0000000..64abcc3
+index 0000000..12d1d80
 --- /dev/null
 +++ b/configure.sh
 @@ -0,0 +1,44 @@
@@ -169,7 +169,7 @@ index 0000000..64abcc3
 +
 +HOST=linux-x86_64
 +
-+ANDROID_VER=21
++ANDROID_VER=23
 +TOOLCHAIN_VER=4.9
 +
 +# Flags for 32-bit ARM

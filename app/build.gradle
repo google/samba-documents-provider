@@ -5,7 +5,7 @@ android {
     buildToolsVersion "25.0.2"
     defaultConfig {
         applicationId "com.google.android.sambadocumentsprovider"
-        minSdkVersion 21
+        minSdkVersion 23
         targetSdkVersion 25
         versionCode 102
         versionName "1.0"
