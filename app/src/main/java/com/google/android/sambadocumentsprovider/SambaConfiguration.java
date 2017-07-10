@@ -39,6 +39,10 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
   private static final String SMB_CONF_FILE = "smb.conf";
   private static final String CONF_KEY_VALUE_SEPARATOR = " = ";
 
+  // Hack: magic number of current default conf file size. Used to update old conf without reading
+  // file content. Will not be upstreamed to master.
+  private static final long DEFAULT_CONF_FILE_LEN = 65L;
+
   private final File mHomeFolder;
   private final Map<String, String> mConfigurations = new HashMap<>();
 
@@ -50,7 +54,7 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
 
   public void flushAsDefault(OnConfigurationChangedListener listener) {
     File smbFile = getSmbFile(mHomeFolder);
-    if (!smbFile.exists()) {
+    if (!smbFile.exists() || (smbFile.isFile() && smbFile.length() < DEFAULT_CONF_FILE_LEN)) {
       flush(listener);
     }
   }
