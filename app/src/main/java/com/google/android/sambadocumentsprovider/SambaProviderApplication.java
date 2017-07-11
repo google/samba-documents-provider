@@ -49,6 +49,8 @@ public class SambaProviderApplication extends Application {
 
   @Override
   public void onCreate() {
+    super.onCreate();
+
     final ConnectivityManager manager =
         (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
     manager.registerNetworkCallback(
