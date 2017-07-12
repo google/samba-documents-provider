@@ -32,6 +32,10 @@ import java.util.Map.Entry;
 
 class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
 
+  static {
+    System.loadLibrary("samba_client");
+  }
+
   private static final String TAG = "SambaConfiguration";
 
   private static final String HOME_VAR = "HOME";

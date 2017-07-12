@@ -34,39 +34,41 @@ public class SambaProviderApplication extends Application {
 
   private final DocumentCache mCache = new DocumentCache();
   private final TaskManager mTaskManager = new TaskManager();
-  private final SmbClient mSambaClient;
-  private final CredentialCache mCredentialCache;
+
+  private SmbClient mSambaClient;
+  private CredentialCache mCredentialCache;
 
   private SambaConfiguration mSambaConf;
   private ShareManager mShareManager;
 
-  public SambaProviderApplication() {
+  @Override
+  public void onCreate() {
+    super.onCreate();
+
+    init(this);
+  }
+
+  public static void init(Context context) {
+    ((SambaProviderApplication) context.getApplicationContext()).initialize(context);
+  }
+
+  private void initialize(Context context) {
+    if (mSambaClient != null) {
+      // Already initialized.
+      return;
+    }
+
+    initializeSambaConf(context);
+
     final SambaMessageLooper looper = new SambaMessageLooper();
     mCredentialCache = looper.getCredentialCache();
     mSambaClient = looper.getClient();
+
+    registerNetworkCallback(context);
   }
 
-  @Override
-  public void onCreate() {
-    final ConnectivityManager manager =
-        (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-    manager.registerNetworkCallback(
-        new NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET)
-            .build(),
-        new NetworkCallback() {
-          @Override
-          public void onAvailable(Network network) {
-            mSambaClient.reset();
-          }
-        });
-
-    initializeSambaConf();
-  }
-
-  private void initializeSambaConf() {
-    mSambaConf = new SambaConfiguration(getDir("home", MODE_PRIVATE));
+  private void initializeSambaConf(Context context) {
+    mSambaConf = new SambaConfiguration(context.getDir("home", MODE_PRIVATE));
 
     // lmhosts are not used in SambaDocumentsProvider and prioritize bcast because sometimes in home
     // settings DNS will resolve unknown domain name to a specific IP for advertisement.
@@ -84,6 +86,23 @@ public class SambaProviderApplication extends Application {
         mSambaClient.reset();
       }
     });
+  }
+
+  private void registerNetworkCallback(Context context) {
+    final ConnectivityManager manager =
+        (ConnectivityManager) context.getSystemService(CONNECTIVITY_SERVICE);
+    manager.registerNetworkCallback(
+        new NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET)
+            .build(),
+        new NetworkCallback() {
+          @Override
+          public void onAvailable(Network network) {
+            mSambaClient.reset();
+          }
+        });
+
   }
 
   public static ShareManager getServerManager(Context context) {

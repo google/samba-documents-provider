@@ -139,6 +139,8 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   @Override
   public boolean onCreate() {
     final Context context = getContext();
+    SambaProviderApplication.init(getContext());
+
     mClient = SambaProviderApplication.getSambaClient(context);
     mCache = SambaProviderApplication.getDocumentCache(context);
     mTaskManager = SambaProviderApplication.getTaskManager(context);
