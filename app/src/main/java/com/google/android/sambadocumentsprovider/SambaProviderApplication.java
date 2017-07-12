@@ -35,41 +35,41 @@ public class SambaProviderApplication extends Application {
 
   private final DocumentCache mCache = new DocumentCache();
   private final TaskManager mTaskManager = new TaskManager();
-  private final SmbFacade mSambaClient;
-  private final CredentialCache mCredentialCache;
+
+  private SmbFacade mSambaClient;
+  private CredentialCache mCredentialCache;
 
   private SambaConfiguration mSambaConf;
   private ShareManager mShareManager;
-
-  public SambaProviderApplication() {
-    final SambaMessageLooper looper = new SambaMessageLooper();
-    mCredentialCache = looper.getCredentialCache();
-    mSambaClient = looper.getClient();
-  }
 
   @Override
   public void onCreate() {
     super.onCreate();
 
-    final ConnectivityManager manager =
-        (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-    manager.registerNetworkCallback(
-        new NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET)
-            .build(),
-        new NetworkCallback() {
-          @Override
-          public void onAvailable(Network network) {
-            mSambaClient.reset();
-          }
-        });
-
-    initializeSambaConf();
+    init(this);
   }
 
-  private void initializeSambaConf() {
-    mSambaConf = new SambaConfiguration(getDir("home", MODE_PRIVATE));
+  public static void init(Context context) {
+    ((SambaProviderApplication) context.getApplicationContext()).initialize(context);
+  }
+
+  private void initialize(Context context) {
+    if (mSambaClient != null) {
+      // Already initialized.
+      return;
+    }
+
+    initializeSambaConf(context);
+
+    final SambaMessageLooper looper = new SambaMessageLooper();
+    mCredentialCache = looper.getCredentialCache();
+    mSambaClient = looper.getClient();
+
+    registerNetworkCallback(context);
+  }
+
+  private void initializeSambaConf(Context context) {
+    mSambaConf = new SambaConfiguration(context.getDir("home", MODE_PRIVATE));
 
     // lmhosts are not used in SambaDocumentsProvider and prioritize bcast because sometimes in home
     // settings DNS will resolve unknown domain name to a specific IP for advertisement.
@@ -83,12 +83,24 @@ public class SambaProviderApplication extends Application {
     // Urge from users to disable SMB1 by default.
     mSambaConf.addConfiguration("client min protocol", "SMB2");
     mSambaConf.addConfiguration("client max protocol", "SMB3");
-    mSambaConf.flushAsDefault(new OnConfigurationChangedListener() {
-      @Override
-      public void onConfigurationChanged() {
-        mSambaClient.reset();
-      }
-    });
+    mSambaConf.flushAsDefault();
+  }
+
+  private void registerNetworkCallback(Context context) {
+    final ConnectivityManager manager =
+        (ConnectivityManager) context.getSystemService(CONNECTIVITY_SERVICE);
+    manager.registerNetworkCallback(
+        new NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET)
+            .build(),
+        new NetworkCallback() {
+          @Override
+          public void onAvailable(Network network) {
+            mSambaClient.reset();
+          }
+        });
+
   }
 
   public static ShareManager getServerManager(Context context) {

@@ -17,6 +17,7 @@
 
 package com.google.android.sambadocumentsprovider;
 
+import android.support.annotation.Nullable;
 import android.system.ErrnoException;
 import android.util.Log;
 import com.google.android.sambadocumentsprovider.base.BiResultTask;
@@ -31,6 +32,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
+
+  static {
+    System.loadLibrary("samba_client");
+  }
 
   private static final String TAG = "SambaConfiguration";
 
@@ -48,10 +53,10 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
     setHomeEnv(homeFolder.getAbsolutePath());
   }
 
-  public void flushAsDefault(OnConfigurationChangedListener listener) {
+  public void flushAsDefault() {
     File smbFile = getSmbFile(mHomeFolder);
     if (!smbFile.exists()) {
-      flush(listener);
+      flush(null);
     }
   }
 
@@ -69,7 +74,7 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
     new LoadTask(listener).execute();
   }
 
-  public void flush(OnConfigurationChangedListener listener) {
+  public void flush(@Nullable OnConfigurationChangedListener listener) {
     new FlushTask(listener).execute();
   }
 
@@ -143,9 +148,9 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
   }
 
   private class FlushTask extends BiResultTask<Void, Void, Void> {
-    private final OnConfigurationChangedListener mListener;
+    private final @Nullable OnConfigurationChangedListener mListener;
 
-    private FlushTask(OnConfigurationChangedListener listener) {
+    private FlushTask(@Nullable OnConfigurationChangedListener listener) {
       mListener = listener;
     }
 
@@ -157,7 +162,9 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
 
     @Override
     public void onSucceeded(Void result) {
-      mListener.onConfigurationChanged();
+      if (mListener != null) {
+        mListener.onConfigurationChanged();
+      }
     }
   }
 
