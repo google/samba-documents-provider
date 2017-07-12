@@ -83,7 +83,9 @@ public class SambaProviderApplication extends Application {
     mSambaConf.flushAsDefault(new OnConfigurationChangedListener() {
       @Override
       public void onConfigurationChanged() {
-        mSambaClient.reset();
+        if (mSambaClient != null) {
+          mSambaClient.reset();
+        }
       }
     });
   }
