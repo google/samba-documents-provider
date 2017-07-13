@@ -65,6 +65,8 @@ public class SambaProviderApplication extends Application {
     mCredentialCache = looper.getCredentialCache();
     mSambaClient = looper.getClient();
 
+    mShareManager = new ShareManager(context, mCredentialCache);
+
     registerNetworkCallback(context);
   }
 
@@ -104,13 +106,7 @@ public class SambaProviderApplication extends Application {
   }
 
   public static ShareManager getServerManager(Context context) {
-    final SambaProviderApplication application = getApplication(context);
-    synchronized (application) {
-      if (application.mShareManager == null) {
-        application.mShareManager = new ShareManager(context, application.mCredentialCache);
-      }
-      return application.mShareManager;
-    }
+    return getApplication(context).mShareManager;
   }
 
   public static SmbFacade getSambaClient(Context context) {
