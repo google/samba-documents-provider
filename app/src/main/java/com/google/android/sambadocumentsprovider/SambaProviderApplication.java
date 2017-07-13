@@ -17,8 +17,6 @@
 
 package com.google.android.sambadocumentsprovider;
 
-import static android.content.ContentValues.TAG;
-
 import android.app.Application;
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -36,6 +34,8 @@ import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
 import java.io.File;
 
 public class SambaProviderApplication extends Application {
+
+  private static final String TAG = "SambaProviderApplication";
 
   private final DocumentCache mCache = new DocumentCache();
   private final TaskManager mTaskManager = new TaskManager();
