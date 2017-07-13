@@ -97,7 +97,8 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
     final File extSmbFile = getExtSmbFile(mShareFolder);
 
     if (extSmbFile.isFile() && extSmbFile.lastModified() > smbFile.lastModified()) {
-      Log.d(TAG, "Syncing " + SMB_CONF_FILE + " from external source to internal source.");
+      if (BuildConfig.DEBUG) Log.d(TAG, "Syncing " + SMB_CONF_FILE +
+          " from external source to internal source.");
       new SyncTask(listener).execute(extSmbFile);
 
       return true;
