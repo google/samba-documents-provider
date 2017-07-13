@@ -23,9 +23,19 @@
 #define LOG(level, tag, args...) \
   __android_log_print((level), (tag), args)
 
+#ifdef DEBUG
+
 #define LOGV(tag, args...) LOG(ANDROID_LOG_VERBOSE, tag, args)
 
 #define LOGD(tag, args...) LOG(ANDROID_LOG_DEBUG, tag, args)
+
+#else // DEBUG
+
+#define LOGV(tag, args...)
+
+#define LOGD(tag, args...)
+
+#endif // DEBUG
 
 #define LOGI(tag, args...) LOG(ANDROID_LOG_INFO, tag, args)
 

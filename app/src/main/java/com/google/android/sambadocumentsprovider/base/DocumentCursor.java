@@ -24,6 +24,7 @@ import android.os.AsyncTask.Status;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.util.Log;
+import com.google.android.sambadocumentsprovider.BuildConfig;
 
 /**
  * Use this class to avoid using {@link Cursor#setExtras(Bundle)} on API level < 23.
@@ -57,7 +58,7 @@ public class DocumentCursor extends MatrixCursor {
   public void close() {
     super.close();
     if (mLoadingTask != null && mLoadingTask.getStatus() != Status.FINISHED) {
-      Log.d(TAG, "Cursor is closed. Cancel the loading task " + mLoadingTask);
+      if(BuildConfig.DEBUG) Log.d(TAG, "Cursor is closed. Cancel the loading task " + mLoadingTask);
       // Interrupting the task is not a good choice as it's waiting for the Samba client thread
       // returning the result. Interrupting the task only frees the task from waiting for the
       // result, rather than freeing the Samba client thread doing the hard work.

@@ -39,6 +39,7 @@ import android.provider.DocumentsProvider;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
 import android.util.Log;
+import com.google.android.sambadocumentsprovider.BuildConfig;
 import com.google.android.sambadocumentsprovider.R;
 import com.google.android.sambadocumentsprovider.SambaProviderApplication;
 import com.google.android.sambadocumentsprovider.ShareManager;
@@ -160,7 +161,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public Cursor queryRoots(String[] projection) throws FileNotFoundException {
-    Log.d(TAG, "Querying roots.");
+    if(BuildConfig.DEBUG) Log.d(TAG, "Querying roots.");
     projection = (projection == null) ? DEFAULT_ROOT_PROJECTION : projection;
 
     MatrixCursor cursor = new MatrixCursor(projection, mShareManager.size());
@@ -200,7 +201,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public Cursor queryDocument(String documentId, String[] projection) throws FileNotFoundException {
-    Log.d(TAG, "Querying document: " + documentId);
+    if (BuildConfig.DEBUG) Log.d(TAG, "Querying document: " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
     final Uri uri = toUri(documentId);
@@ -235,7 +236,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   @Override
   public Cursor queryChildDocuments(String documentId, String[] projection, String sortOrder)
       throws FileNotFoundException {
-    Log.d(TAG, "Querying children documents under " + documentId);
+    if (BuildConfig.DEBUG) Log.d(TAG, "Querying children documents under " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
     final Uri uri = toUri(documentId);
@@ -555,7 +556,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   @Override
   public ParcelFileDescriptor openDocument(String documentId, String mode,
       CancellationSignal cancellationSignal) throws FileNotFoundException {
-    Log.d(TAG, "Opening document " + documentId + " with mode " + mode);
+    if (BuildConfig.DEBUG) Log.d(TAG, "Opening document " + documentId + " with mode " + mode);
 
     try {
       final String uri = toUriString(documentId);
