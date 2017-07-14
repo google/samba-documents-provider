@@ -45,42 +45,75 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
   private static final String CONF_KEY_VALUE_SEPARATOR = " = ";
 
   private final File mHomeFolder;
+  private final File mShareFolder;
   private final Map<String, String> mConfigurations = new HashMap<>();
 
-  SambaConfiguration(File homeFolder) {
+  SambaConfiguration(File homeFolder, @Nullable File shareFolder) {
     mHomeFolder = homeFolder;
+    if (shareFolder != null && (shareFolder.isDirectory() || shareFolder.mkdirs())) {
+      mShareFolder = shareFolder;
+    } else {
+      Log.w(TAG, "Failed to create share folder. Only default value is supported.");
+
+      // Use home folder as the share folder to avoid null checks everywhere.
+      mShareFolder = mHomeFolder;
+    }
 
     setHomeEnv(homeFolder.getAbsolutePath());
   }
 
-  public void flushAsDefault() {
+  void flushDefault(OnConfigurationChangedListener listener) {
+    // lmhosts are not used in SambaDocumentsProvider and prioritize bcast because sometimes in home
+    // settings DNS will resolve unknown domain name to a specific IP for advertisement.
+    //
+    // lmhosts -- lmhosts file if existed side by side to smb.conf
+    // wins -- Windows Internet Name Service
+    // hosts -- hosts file and DNS resolution
+    // bcast -- NetBIOS broadcast
+    addConfiguration("name resolve order", "wins bcast hosts");
+
+    // Urge from users to disable SMB1 by default.
+    addConfiguration("client min protocol", "SMB2");
+    addConfiguration("client max protocol", "SMB3");
+
     File smbFile = getSmbFile(mHomeFolder);
     if (!smbFile.exists()) {
-      flush(null);
+      flush(listener);
     }
   }
 
-  public synchronized SambaConfiguration addConfiguration(String key, String value) {
+  synchronized SambaConfiguration addConfiguration(String key, String value) {
     mConfigurations.put(key, value);
     return this;
   }
 
-  public synchronized SambaConfiguration removeConfiguration(String key) {
+  synchronized SambaConfiguration removeConfiguration(String key) {
     mConfigurations.remove(key);
     return this;
   }
 
-  public void load(OnConfigurationChangedListener listener) {
-    new LoadTask(listener).execute();
+  boolean syncFromExternal(OnConfigurationChangedListener listener) {
+    final File smbFile = getSmbFile(mHomeFolder);
+    final File extSmbFile = getExtSmbFile(mShareFolder);
+
+    if (extSmbFile.isFile() && extSmbFile.lastModified() > smbFile.lastModified()) {
+      if (BuildConfig.DEBUG) Log.d(TAG, "Syncing " + SMB_CONF_FILE +
+          " from external source to internal source.");
+      new SyncTask(listener).execute(extSmbFile);
+
+      return true;
+    }
+
+    return false;
   }
 
-  public void flush(@Nullable OnConfigurationChangedListener listener) {
+  private void flush(OnConfigurationChangedListener listener) {
     new FlushTask(listener).execute();
   }
 
-  private synchronized void read() throws IOException {
+  private synchronized void read(File smbFile) throws IOException {
     mConfigurations.clear();
-    try (BufferedReader reader = new BufferedReader(new FileReader(getSmbFile(mHomeFolder)))) {
+    try (BufferedReader reader = new BufferedReader(new FileReader(smbFile))) {
       String line;
       while ((line = reader.readLine()) != null) {
         String[] conf = line.split(CONF_KEY_VALUE_SEPARATOR);
@@ -113,6 +146,10 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
     return new File(smbFolder, SMB_CONF_FILE);
   }
 
+  private static File getExtSmbFile(File shareFolder) {
+    return new File(shareFolder, SMB_CONF_FILE);
+  }
+
   private void setHomeEnv(String absoluteFolder) {
     try {
       setEnv(HOME_VAR, absoluteFolder);
@@ -128,16 +165,18 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
     return mConfigurations.entrySet().iterator();
   }
 
-  private class LoadTask extends BiResultTask<Void, Void, Void> {
+  private class SyncTask extends BiResultTask<File, Void, Void> {
+
     private final OnConfigurationChangedListener mListener;
 
-    private LoadTask(OnConfigurationChangedListener listener) {
+    private SyncTask(OnConfigurationChangedListener listener) {
       mListener = listener;
     }
 
     @Override
-    public Void run(Void... params) throws IOException {
-      read();
+    public Void run(File... params) throws IOException {
+      read(params[0]);
+      write();
       return null;
     }
 
@@ -148,9 +187,9 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
   }
 
   private class FlushTask extends BiResultTask<Void, Void, Void> {
-    private final @Nullable OnConfigurationChangedListener mListener;
+    private final OnConfigurationChangedListener mListener;
 
-    private FlushTask(@Nullable OnConfigurationChangedListener listener) {
+    private FlushTask(OnConfigurationChangedListener listener) {
       mListener = listener;
     }
 
@@ -162,9 +201,7 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
 
     @Override
     public void onSucceeded(Void result) {
-      if (mListener != null) {
-        mListener.onConfigurationChanged();
-      }
+      mListener.onConfigurationChanged();
     }
   }
 
