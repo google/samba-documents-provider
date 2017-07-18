@@ -22,7 +22,7 @@ import java.nio.ByteBuffer;
 
 public class ByteBufferPool {
 
-  private static final int BUFFER_CAPACITY = 128 * 1024;
+  private static final int BUFFER_CAPACITY = 1024 * 1024;
   private final Pools.Pool<ByteBuffer> mBufferPool = new Pools.SynchronizedPool<>(16);
 
   public ByteBuffer obtainBuffer() {
