@@ -55,9 +55,7 @@ import com.google.android.sambadocumentsprovider.document.LoadChildrenTask;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.document.LoadDocumentTask;
 import com.google.android.sambadocumentsprovider.document.LoadStatTask;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -72,6 +70,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   public static final String AUTHORITY = "com.google.android.sambadocumentsprovider";
 
   private static final String TAG = "SambaDocumentsProvider";
+  private static final String SMB_BROWSING_ROOT_ID = "smbBrowsingRoot";
 
   private static final String[] DEFAULT_ROOT_PROJECTION = {
       Root.COLUMN_ROOT_ID,
@@ -165,6 +164,15 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     projection = (projection == null) ? DEFAULT_ROOT_PROJECTION : projection;
 
     MatrixCursor cursor = new MatrixCursor(projection, mShareManager.size());
+
+    cursor.addRow(new Object[] {
+      SMB_BROWSING_ROOT_ID,
+      SMB_BROWSING_ROOT_ID,
+      getContext().getResources().getString(R.string.browsing_root_name),
+      0,
+      R.drawable.ic_cloud,
+    });
+
     for (String uri : mShareManager) {
       final String name;
       final Uri parsedUri = Uri.parse(uri);
