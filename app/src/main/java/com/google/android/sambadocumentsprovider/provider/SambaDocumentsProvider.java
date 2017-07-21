@@ -48,6 +48,8 @@ import com.google.android.sambadocumentsprovider.TaskManager;
 import com.google.android.sambadocumentsprovider.base.AuthFailedException;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.base.DocumentCursor;
+import com.google.android.sambadocumentsprovider.browsing.MasterBrowsingProvider;
+import com.google.android.sambadocumentsprovider.browsing.NetworkBrowser;
 import com.google.android.sambadocumentsprovider.cache.CacheResult;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.document.DocumentMetadata;
@@ -70,7 +72,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   public static final String AUTHORITY = "com.google.android.sambadocumentsprovider";
 
   private static final String TAG = "SambaDocumentsProvider";
-  private static final String SMB_BROWSING_ROOT_ID = "smbBrowsingRoot";
+  private static final String SMB_BROWSING_ROOT_ID = "smb://";
 
   private static final String[] DEFAULT_ROOT_PROJECTION = {
       Root.COLUMN_ROOT_ID,
@@ -141,6 +143,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   private DocumentCache mCache;
   private TaskManager mTaskManager;
   private StorageManager mStorageManager;
+  private NetworkBrowser mNetworkBrowser;
 
   @Override
   public boolean onCreate() {
@@ -154,6 +157,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     mShareManager = SambaProviderApplication.getServerManager(context);
     mShareManager.addListener(mShareChangeListener);
     mStorageManager = (StorageManager) context.getSystemService(Context.STORAGE_SERVICE);
+    mNetworkBrowser = SambaProviderApplication.getNetworkBrowser(context);
 
     return mClient != null;
   }
@@ -212,7 +216,14 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     if (BuildConfig.DEBUG) Log.d(TAG, "Querying document: " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
+    final MatrixCursor cursor = new MatrixCursor(projection);
     final Uri uri = toUri(documentId);
+
+    if (documentId.equals(SMB_BROWSING_ROOT_ID)) {
+      cursor.addRow(getDocumentValues(projection, DocumentMetadata.createShare(uri)));
+      return cursor;
+    }
+
     try {
       try (CacheResult result = mCache.get(uri)) {
 
@@ -229,7 +240,6 @@ public class SambaDocumentsProvider extends DocumentsProvider {
           metadata = result.getItem();
         }
 
-        final MatrixCursor cursor = new MatrixCursor(projection);
         cursor.addRow(getDocumentValues(projection, metadata));
 
         return cursor;
@@ -247,11 +257,36 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     if (BuildConfig.DEBUG) Log.d(TAG, "Querying children documents under " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
+    final DocumentCursor cursor = new DocumentCursor(projection);
+
+    if (documentId.equals(SMB_BROWSING_ROOT_ID)) {
+      MasterBrowsingProvider provider = new MasterBrowsingProvider(mClient);
+      List<DocumentMetadata> servers = provider.getServers();
+
+      for (DocumentMetadata server : servers) {
+        cursor.addRow(getDocumentValues(projection, server));
+      }
+
+      return cursor;
+    }
+
     final Uri uri = toUri(documentId);
+
+    if (uri.getPathSegments().isEmpty()) {
+      // This is a file share. Use the browsing logic.
+
+      List<DocumentMetadata> shares = mNetworkBrowser.getSharesForServer(uri);
+
+      for (DocumentMetadata share : shares) {
+        cursor.addRow(getDocumentValues(projection, share));
+      }
+
+      return cursor;
+    }
+
     try {
       try (final CacheResult result = mCache.get(uri)) {
         boolean isLoading = false;
-        final DocumentCursor cursor = new DocumentCursor(projection);
         final Bundle extra = new Bundle();
         final Uri notifyUri = toNotifyUri(uri);
 
