@@ -25,6 +25,8 @@ import android.system.StructStat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
+
+import com.google.android.sambadocumentsprovider.R;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
@@ -32,7 +34,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -72,6 +73,19 @@ public class DocumentMetadata {
 
   public boolean isFileShare() {
     return mEntry.getType() == DirectoryEntry.FILE_SHARE;
+  }
+
+  public int getIconResourceId() {
+    switch (mEntry.getType()) {
+      case DirectoryEntry.BROWSING_ROOT:
+        return R.drawable.ic_cloud;
+      case DirectoryEntry.SERVER:
+        return R.drawable.ic_server;
+      case DirectoryEntry.FILE_SHARE:
+        return R.drawable.ic_folder_shared;
+      default:
+        return R.drawable.ic_folder;
+    }
   }
 
   public Long getLastModified() {

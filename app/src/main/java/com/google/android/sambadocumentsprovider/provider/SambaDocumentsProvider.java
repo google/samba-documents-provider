@@ -87,7 +87,8 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       Document.COLUMN_FLAGS,
       Document.COLUMN_MIME_TYPE,
       Document.COLUMN_SIZE,
-      Document.COLUMN_LAST_MODIFIED
+      Document.COLUMN_LAST_MODIFIED,
+      Document.COLUMN_ICON
   };
 
   private final OnTaskFinishedCallback<Uri> mLoadDocumentCallback =
@@ -400,6 +401,9 @@ public class SambaDocumentsProvider extends DocumentsProvider {
           break;
         case Document.COLUMN_LAST_MODIFIED:
           row[i] = metadata.getLastModified();
+          break;
+        case Document.COLUMN_ICON:
+          row[i] = metadata.getIconResourceId();
           break;
       }
     }
