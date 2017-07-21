@@ -117,6 +117,7 @@ public class DocumentMetadata {
       case DirectoryEntry.DIR:
       case DirectoryEntry.FILE_SHARE:
         return true;
+      case DirectoryEntry.BROWSING_ROOT:
       case DirectoryEntry.WORKGROUP:
       case DirectoryEntry.SERVER:
       case DirectoryEntry.FILE:
@@ -133,6 +134,7 @@ public class DocumentMetadata {
       case DirectoryEntry.WORKGROUP:
       case DirectoryEntry.SERVER:
       case DirectoryEntry.DIR:
+      case DirectoryEntry.BROWSING_ROOT:
         return Document.MIME_TYPE_DIR;
 
       case DirectoryEntry.LINK:

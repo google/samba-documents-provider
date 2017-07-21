@@ -34,12 +34,26 @@ import java.util.List;
  */
 
 public class NetworkBrowser {
+  public static final Uri SMB_BROWSING_URI = Uri.parse("smb://");
+
   private static final String TAG = "NetworkBrowser";
 
   private final SmbClient mClient;
+  private final DocumentMetadata mBrowsingRoot;
 
   public NetworkBrowser(SmbClient client) {
     mClient = client;
+
+    final DirectoryEntry entry = new DirectoryEntry(DirectoryEntry.BROWSING_ROOT, "", "");
+    mBrowsingRoot = new DocumentMetadata(SMB_BROWSING_URI, entry);
+  }
+
+  public DocumentMetadata getBrowsingRoot() {
+    return mBrowsingRoot;
+  }
+
+  public List<DocumentMetadata> getServers() {
+    return new ArrayList<>();
   }
 
   public List<DocumentMetadata> getSharesForServer(Uri serverUri) {

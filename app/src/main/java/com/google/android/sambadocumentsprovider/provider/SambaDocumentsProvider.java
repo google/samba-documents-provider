@@ -72,7 +72,6 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   public static final String AUTHORITY = "com.google.android.sambadocumentsprovider";
 
   private static final String TAG = "SambaDocumentsProvider";
-  private static final String SMB_BROWSING_ROOT_ID = "smb://";
 
   private static final String[] DEFAULT_ROOT_PROJECTION = {
       Root.COLUMN_ROOT_ID,
@@ -170,8 +169,8 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     MatrixCursor cursor = new MatrixCursor(projection, mShareManager.size());
 
     cursor.addRow(new Object[] {
-      SMB_BROWSING_ROOT_ID,
-      SMB_BROWSING_ROOT_ID,
+      NetworkBrowser.SMB_BROWSING_URI.toString(),
+      NetworkBrowser.SMB_BROWSING_URI.toString(),
       getContext().getResources().getString(R.string.browsing_root_name),
       0,
       R.drawable.ic_cloud,
@@ -219,8 +218,8 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     final MatrixCursor cursor = new MatrixCursor(projection);
     final Uri uri = toUri(documentId);
 
-    if (documentId.equals(SMB_BROWSING_ROOT_ID)) {
-      cursor.addRow(getDocumentValues(projection, DocumentMetadata.createShare(uri)));
+    if (documentId.equals(NetworkBrowser.SMB_BROWSING_URI.toString())) {
+      cursor.addRow(getDocumentValues(projection, mNetworkBrowser.getBrowsingRoot()));
       return cursor;
     }
 
@@ -259,7 +258,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
     final DocumentCursor cursor = new DocumentCursor(projection);
 
-    if (documentId.equals(SMB_BROWSING_ROOT_ID)) {
+    if (documentId.equals(NetworkBrowser.SMB_BROWSING_URI.toString())) {
       MasterBrowsingProvider provider = new MasterBrowsingProvider(mClient);
       List<DocumentMetadata> servers = provider.getServers();
 

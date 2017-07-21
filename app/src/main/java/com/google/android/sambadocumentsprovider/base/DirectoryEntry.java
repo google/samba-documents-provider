@@ -26,8 +26,8 @@ import java.lang.annotation.RetentionPolicy;
  * a workgroup, a share or a file.
  */
 public class DirectoryEntry {
-
-  @IntDef({WORKGROUP, SERVER, FILE_SHARE, PRINTER_SHARE, COMMS_SHARE, IPC_SHARE, DIR, FILE, LINK})
+  @IntDef({BROWSING_ROOT, WORKGROUP, SERVER, FILE_SHARE, PRINTER_SHARE, COMMS_SHARE, IPC_SHARE,
+          DIR, FILE, LINK})
   @Retention(RetentionPolicy.SOURCE)
   @interface Type {}
   public static final int WORKGROUP = 1;
@@ -39,6 +39,7 @@ public class DirectoryEntry {
   public static final int DIR = 7;
   public static final int FILE = 8;
   public static final int LINK = 9;
+  public static final int BROWSING_ROOT = 10;
 
   private final int mType;
   private final String mComment;
