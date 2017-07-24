@@ -94,12 +94,17 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   private final SmbServer browsingRoot = new SmbServer() {
     @Override
-    public String getName() {
+    public String getDisplayName() {
       return getContext().getResources().getString(R.string.browsing_root_name);
     }
 
     @Override
-    public Uri getUri() {
+    public Uri getUnresolvedUri() {
+      return NetworkBrowser.SMB_BROWSING_URI;
+    }
+
+    @Override
+    public Uri getResolvedUri() {
       return NetworkBrowser.SMB_BROWSING_URI;
     }
   };
@@ -414,10 +419,10 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     for (int i = 0; i < projection.length; ++i) {
       switch (projection[i]) {
         case Document.COLUMN_DOCUMENT_ID:
-          row[i] = server.getUri();
+          row[i] = server.getResolvedUri();
           break;
         case Document.COLUMN_DISPLAY_NAME:
-          row[i] = server.getName();
+          row[i] = server.getDisplayName();
           break;
         case Document.COLUMN_FLAGS:
           row[i] = 0;

@@ -62,20 +62,27 @@ public class MasterBrowsingProvider implements NetworkBrowsingProvider {
   }
 
   private static class MasterSambaServer implements SmbServer {
+    private final Uri mUri;
     private final String mName;
 
     MasterSambaServer(String name) {
+      mUri = Uri.parse(MASTER_BROWSING_DIR + name);
       mName = name;
     }
 
     @Override
-    public String getName() {
+    public String getDisplayName() {
       return mName;
     }
 
     @Override
-    public Uri getUri() {
-      return Uri.parse(MASTER_BROWSING_DIR + mName);
+    public Uri getUnresolvedUri() {
+      return mUri;
+    }
+
+    @Override
+    public Uri getResolvedUri() {
+      return mUri;
     }
   }
 }

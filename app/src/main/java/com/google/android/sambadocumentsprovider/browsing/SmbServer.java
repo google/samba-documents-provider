@@ -20,13 +20,16 @@ package com.google.android.sambadocumentsprovider.browsing;
 import android.net.Uri;
 
 public interface SmbServer {
+
+  String getDisplayName();
+
   /**
    * Get an unresolved name of the Samba server.
    */
-  String getName();
+  Uri getUnresolvedUri();
 
   /**
    * Get a Uri for the Samba server containing a resolved server name.
    */
-  Uri getUri();
+  Uri getResolvedUri();
 }
