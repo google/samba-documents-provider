@@ -39,15 +39,13 @@ public class NetworkBrowser {
   public static final Uri SMB_BROWSING_URI = Uri.parse("smb://");
 
   private static final String TAG = "NetworkBrowser";
-
-  private final SmbClient mClient;
+  
   private final NetworkBrowsingProvider mMasterProvider;
 
   private final ExecutorService mExecutor = Executors.newCachedThreadPool();
   private final Map<Uri, Future> mTasks = new HashMap<>();
 
   public NetworkBrowser(SmbClient client) {
-    mClient = client;
     mMasterProvider = new MasterBrowsingProvider(client);
   }
 
@@ -64,42 +62,8 @@ public class NetworkBrowser {
     }
   }
 
-  public Future getSharesForServerAsync(
-          Uri serverUri,
-          OnTaskFinishedCallback<List<String>> callback) {
-    synchronized (mTasks) {
-      Future getSharesTask = mTasks.get(SMB_BROWSING_URI);
-
-      if (getSharesTask == null) {
-        getSharesTask = mExecutor.submit(new LoadSharesTask(callback, serverUri, mClient, this));
-        mTasks.put(serverUri, getSharesTask);
-      }
-
-      return getSharesTask;
-    }
-  }
-
   private List<SmbServer> getServers() throws IOException {
     return mMasterProvider.getServers();
-  }
-
-  public List<String> getSharesForServer(Uri serverUri) {
-    List<String> shares = new ArrayList<>();
-
-    try {
-      SmbDir serverDir = mClient.openDir(serverUri.toString());
-
-      List<DirectoryEntry> shareEntries = getDirectoryChildren(serverDir);
-      for (DirectoryEntry shareEntry : shareEntries) {
-        if (shareEntry.getType() == DirectoryEntry.FILE_SHARE) {
-          shares.add(shareEntry.getName());
-        }
-      }
-    } catch (IOException e) {
-      Log.e(TAG, "Failed to load shares for server: ", e);
-    }
-
-    return shares;
   }
 
   static List<DirectoryEntry> getDirectoryChildren(SmbDir dir) throws IOException {
@@ -113,11 +77,11 @@ public class NetworkBrowser {
     return children;
   }
 
-  private static abstract class NetworkBrowsingTask<T> implements Runnable {
-    final OnTaskFinishedCallback<T> mCallback;
+  private static class LoadServersTask implements Runnable {
+    final OnTaskFinishedCallback<List<SmbServer>> mCallback;
     final WeakReference<NetworkBrowser> mBrowser;
 
-    NetworkBrowsingTask(OnTaskFinishedCallback<T> callback, NetworkBrowser browser) {
+    LoadServersTask(OnTaskFinishedCallback<List<SmbServer>> callback, NetworkBrowser browser) {
       mCallback = callback;
       mBrowser = new WeakReference<>(browser);
     }
@@ -125,43 +89,16 @@ public class NetworkBrowser {
     @Override
     public void run() {
       try {
-        T data = loadData();
-        mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, data, null);
+        List<SmbServer> servers = loadData();
+        mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, servers, null);
       } catch (IOException e) {
         Log.e(TAG, "Failed to load data for network browsing: ", e);
         mCallback.onTaskFinished(OnTaskFinishedCallback.FAILED, null, e);
       }
     }
 
-    abstract T loadData() throws IOException;
-  }
-
-  private static class  LoadServersTask extends NetworkBrowsingTask<List<SmbServer>> {
-    LoadServersTask(OnTaskFinishedCallback<List<SmbServer>> callback, NetworkBrowser browser) {
-      super(callback, browser);
-    }
-
     List<SmbServer> loadData() throws IOException {
-      return super.mBrowser.get().getServers();
-    }
-  }
-
-  private static class  LoadSharesTask extends NetworkBrowsingTask<List<String>> {
-    final Uri mServerUri;
-    final SmbClient mClient;
-
-    LoadSharesTask(OnTaskFinishedCallback<List<String>> callback,
-                    Uri serverUri,
-                    SmbClient client,
-                    NetworkBrowser browser) {
-      super(callback, browser);
-
-      mServerUri = serverUri;
-      mClient = client;
-    }
-
-    List<String> loadData() throws IOException {
-      return super.mBrowser.get().getSharesForServer(mServerUri);
+      return mBrowser.get().getServers();
     }
   }
 }
