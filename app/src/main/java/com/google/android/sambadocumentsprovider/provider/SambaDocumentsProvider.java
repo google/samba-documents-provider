@@ -285,7 +285,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
                   new OnTaskFinishedCallback<List<SmbServer>>() {
                     @Override
                     public void onTaskFinished(@Status int status, @Nullable List<SmbServer> item, @Nullable Exception exception) {
-                      Log.d(TAG, "Browsing callback");
+                      if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
 
                       mBrowsingStorage = item;
 

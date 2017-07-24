@@ -18,7 +18,6 @@
 package com.google.android.sambadocumentsprovider.provider;
 
 import android.database.MatrixCursor;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -54,7 +53,7 @@ public class NetworkBrowserCursor extends MatrixCursor {
   public void close() {
     super.close();
     if (mFuture != null && !mFuture.isDone()) {
-      if(BuildConfig.DEBUG) Log.d(TAG, "Cursor is closed. Cancel the loading task " + mFuture);
+      if (BuildConfig.DEBUG) Log.d(TAG, "Cursor is closed. Cancel the loading task " + mFuture);
       mFuture.cancel(false);
     }
   }
