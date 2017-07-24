@@ -17,9 +17,8 @@
 
 package com.google.android.sambadocumentsprovider.browsing;
 
-import java.io.IOException;
-import java.util.List;
-
-public interface NetworkBrowsingProvider {
-  List<SmbServer> getServers() throws BrowsingException;
+public class BrowsingException extends Exception {
+  public BrowsingException(String message) {
+    super("Browsing failed: " + message);
+  }
 }

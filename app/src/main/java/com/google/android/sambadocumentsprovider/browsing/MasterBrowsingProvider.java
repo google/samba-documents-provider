@@ -39,23 +39,27 @@ public class MasterBrowsingProvider implements NetworkBrowsingProvider {
   }
 
   @Override
-  public List<SmbServer> getServers() throws IOException {
+  public List<SmbServer> getServers() throws BrowsingException {
     List<SmbServer> serversList = new ArrayList<>();
 
-    SmbDir rootDir = mClient.openDir(MASTER_BROWSING_DIR);
+    try {
+      SmbDir rootDir = mClient.openDir(MASTER_BROWSING_DIR);
 
-    List<DirectoryEntry> workgroups = getDirectoryChildren(rootDir);
-    for (DirectoryEntry workgroup : workgroups) {
-      if (workgroup.getType() == DirectoryEntry.WORKGROUP) {
-        List<DirectoryEntry> servers = getDirectoryChildren
-                (mClient.openDir(MASTER_BROWSING_DIR + workgroup.getName()));
+      List<DirectoryEntry> workgroups = getDirectoryChildren(rootDir);
+      for (DirectoryEntry workgroup : workgroups) {
+        if (workgroup.getType() == DirectoryEntry.WORKGROUP) {
+          List<DirectoryEntry> servers = getDirectoryChildren
+                  (mClient.openDir(MASTER_BROWSING_DIR + workgroup.getName()));
 
-        for (DirectoryEntry server : servers) {
-          if (server.getType() == DirectoryEntry.SERVER) {
-            serversList.add(new MasterSambaServer(server.getName()));
+          for (DirectoryEntry server : servers) {
+            if (server.getType() == DirectoryEntry.SERVER) {
+              serversList.add(new MasterSambaServer(server.getName()));
+            }
           }
         }
       }
+    } catch (IOException e) {
+      throw new BrowsingException(e.getMessage());
     }
 
     return serversList;

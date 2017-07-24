@@ -62,7 +62,7 @@ public class NetworkBrowser {
     }
   }
 
-  private List<SmbServer> getServers() throws IOException {
+  private List<SmbServer> getServers() throws BrowsingException {
     return mMasterProvider.getServers();
   }
 
@@ -91,13 +91,13 @@ public class NetworkBrowser {
       try {
         List<SmbServer> servers = loadData();
         mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, servers, null);
-      } catch (IOException e) {
+      } catch (BrowsingException e) {
         Log.e(TAG, "Failed to load data for network browsing: ", e);
         mCallback.onTaskFinished(OnTaskFinishedCallback.FAILED, null, e);
       }
     }
 
-    List<SmbServer> loadData() throws IOException {
+    List<SmbServer> loadData() throws BrowsingException {
       return mBrowser.get().getServers();
     }
   }
