@@ -146,7 +146,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   private StorageManager mStorageManager;
   private NetworkBrowser mNetworkBrowser;
 
-  private final Map<Uri, List<SmbServer>> mBrowsingStorage = new HashMap<>();
+  private List<SmbServer> mBrowsingStorage = null;
 
   @Override
   public boolean onCreate() {
@@ -280,16 +280,14 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
       final NetworkBrowserCursor cursor = new NetworkBrowserCursor(projection);
 
-      List<SmbServer> serversList = mBrowsingStorage.get(uri);
-
-      if (serversList == null) {
+      if (mBrowsingStorage == null) {
           Future serversFuture = mNetworkBrowser.getServersAsync(
                   new OnTaskFinishedCallback<List<SmbServer>>() {
                     @Override
                     public void onTaskFinished(@Status int status, @Nullable List<SmbServer> item, @Nullable Exception exception) {
                       Log.d(TAG, "Browsing callback");
 
-                      mBrowsingStorage.put(uri, item);
+                      mBrowsingStorage = item;
 
                       getContext().getContentResolver().notifyChange(
                               toNotifyUri(uri), null, false);
@@ -303,11 +301,11 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         cursor.setExtras(extra);
         cursor.setFuture(serversFuture);
       } else {
-        mBrowsingStorage.remove(uri);
-
-        for (SmbServer server : serversList) {
+        for (SmbServer server : mBrowsingStorage) {
           cursor.addRow(getCursorRowForServer(projection, server));
         }
+
+        mBrowsingStorage = null;
       }
 
       return cursor;
@@ -319,7 +317,6 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         final Bundle extra = new Bundle();
         final Uri notifyUri = toNotifyUri(uri);
         final DocumentCursor cursor = new DocumentCursor(projection);
-        Log.d(TAG, notifyUri.toString());
         if (result.getState() == CacheResult.CACHE_MISS) {
           // Last loading failed... Just feed the bitter fruit.
           mCache.throwLastExceptionIfAny(uri);
