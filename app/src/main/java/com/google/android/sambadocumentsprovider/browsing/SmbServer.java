@@ -17,9 +17,16 @@
 
 package com.google.android.sambadocumentsprovider.browsing;
 
-import java.io.IOException;
-import java.util.List;
+import android.net.Uri;
 
-public interface NetworkBrowsingProvider {
-  List<SmbServer> getServers() throws IOException;
+public interface SmbServer {
+  /**
+   * Get an unresolved name of the Samba server.
+   */
+  String getName();
+
+  /**
+   * Get a Uri for the Samba server containing a resolved server name.
+   */
+  Uri getUri();
 }

@@ -18,11 +18,8 @@
 package com.google.android.sambadocumentsprovider.browsing;
 
 import android.net.Uri;
-import android.util.Log;
 
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
-import com.google.android.sambadocumentsprovider.base.DocumentIdHelper;
-import com.google.android.sambadocumentsprovider.document.DocumentMetadata;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
 
@@ -32,12 +29,7 @@ import java.util.List;
 
 import static com.google.android.sambadocumentsprovider.browsing.NetworkBrowser.getDirectoryChildren;
 
-/**
- * Created by rthakohov on 7/20/17.
- */
-
 public class MasterBrowsingProvider implements NetworkBrowsingProvider {
-  private static final String TAG = "MasterBrowsingProvider";
   private static final String MASTER_BROWSING_DIR = "smb://";
 
   private final SmbClient mClient;
@@ -47,36 +39,43 @@ public class MasterBrowsingProvider implements NetworkBrowsingProvider {
   }
 
   @Override
-  public List<DocumentMetadata> getServers() {
-    List<DocumentMetadata> serversList = new ArrayList<>();
+  public List<SmbServer> getServers() throws IOException {
+    List<SmbServer> serversList = new ArrayList<>();
 
-    try {
-      Uri rootUri = DocumentIdHelper.toUri(MASTER_BROWSING_DIR);
-      SmbDir rootDir = mClient.openDir(rootUri.toString());
+    SmbDir rootDir = mClient.openDir(MASTER_BROWSING_DIR);
 
-      List<DirectoryEntry> workgroups = getDirectoryChildren(rootDir);
-      for (DirectoryEntry workgroup : workgroups) {
-        if (workgroup.getType() == DirectoryEntry.WORKGROUP) {
-          Uri workgroupUri = DocumentMetadata.buildChildUri(rootUri, workgroup);
+    List<DirectoryEntry> workgroups = getDirectoryChildren(rootDir);
+    for (DirectoryEntry workgroup : workgroups) {
+      if (workgroup.getType() == DirectoryEntry.WORKGROUP) {
+        List<DirectoryEntry> servers = getDirectoryChildren
+                (mClient.openDir(MASTER_BROWSING_DIR + workgroup.getName()));
 
-          List<DirectoryEntry> servers = getDirectoryChildren
-                  (mClient.openDir(workgroupUri.toString()));
-
-          for (DirectoryEntry server : servers) {
-            if (server.getType() == DirectoryEntry.SERVER) {
-              Uri serverUri = DocumentMetadata.buildChildUri(rootUri, server);
-              serversList.add(new DocumentMetadata(serverUri, server));
-            }
+        for (DirectoryEntry server : servers) {
+          if (server.getType() == DirectoryEntry.SERVER) {
+            serversList.add(new MasterSambaServer(server.getName()));
           }
         }
       }
-    } catch (IOException e) {
-      Log.e(TAG, "Failed to open dir for master browsing: ", e);
-      // TODO: Exceptions handling
     }
 
     return serversList;
   }
 
+  private static class MasterSambaServer implements SmbServer {
+    private final String mName;
 
+    MasterSambaServer(String name) {
+      mName = name;
+    }
+
+    @Override
+    public String getName() {
+      return mName;
+    }
+
+    @Override
+    public Uri getUri() {
+      return Uri.parse(MASTER_BROWSING_DIR + mName);
+    }
+  }
 }

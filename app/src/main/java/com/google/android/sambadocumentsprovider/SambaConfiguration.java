@@ -73,8 +73,8 @@ class SambaConfiguration implements Iterable<Map.Entry<String, String>> {
     addConfiguration("name resolve order", "wins bcast hosts");
 
     // Urge from users to disable SMB1 by default.
-    addConfiguration("client min protocol", "SMB2");
-    addConfiguration("client max protocol", "SMB3");
+//    addConfiguration("client min protocol", "SMB2");
+//    addConfiguration("client max protocol", "SMB3");
 
     File smbFile = getSmbFile(mHomeFolder);
     if (!smbFile.exists()) {

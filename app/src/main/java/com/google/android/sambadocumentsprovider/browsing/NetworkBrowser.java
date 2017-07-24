@@ -21,17 +21,19 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
-import com.google.android.sambadocumentsprovider.document.DocumentMetadata;
+import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-
-/**
- * Created by rthakohov on 7/20/17.
- */
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class NetworkBrowser {
   public static final Uri SMB_BROWSING_URI = Uri.parse("smb://");
@@ -39,25 +41,50 @@ public class NetworkBrowser {
   private static final String TAG = "NetworkBrowser";
 
   private final SmbClient mClient;
-  private final DocumentMetadata mBrowsingRoot;
+  private final NetworkBrowsingProvider mMasterProvider;
+
+  private final ExecutorService mExecutor = Executors.newCachedThreadPool();
+  private final Map<Uri, Future> mTasks = new HashMap<>();
 
   public NetworkBrowser(SmbClient client) {
     mClient = client;
-
-    final DirectoryEntry entry = new DirectoryEntry(DirectoryEntry.BROWSING_ROOT, "", "");
-    mBrowsingRoot = new DocumentMetadata(SMB_BROWSING_URI, entry);
+    mMasterProvider = new MasterBrowsingProvider(client);
   }
 
-  public DocumentMetadata getBrowsingRoot() {
-    return mBrowsingRoot;
+  public Future getServersAsync(OnTaskFinishedCallback<List<SmbServer>> callback) {
+    synchronized (mTasks) {
+      Future getServersTask = mTasks.get(SMB_BROWSING_URI);
+
+      if (getServersTask == null) {
+        getServersTask = mExecutor.submit(new LoadServersTask(callback, this));
+        mTasks.put(SMB_BROWSING_URI, getServersTask);
+      }
+
+      return getServersTask;
+    }
   }
 
-  public List<DocumentMetadata> getServers() {
-    return new ArrayList<>();
+  public Future getSharesForServerAsync(
+          Uri serverUri,
+          OnTaskFinishedCallback<List<String>> callback) {
+    synchronized (mTasks) {
+      Future getSharesTask = mTasks.get(SMB_BROWSING_URI);
+
+      if (getSharesTask == null) {
+        getSharesTask = mExecutor.submit(new LoadSharesTask(callback, serverUri, mClient, this));
+        mTasks.put(serverUri, getSharesTask);
+      }
+
+      return getSharesTask;
+    }
   }
 
-  public List<DocumentMetadata> getSharesForServer(Uri serverUri) {
-    List<DocumentMetadata> shares = new ArrayList<>();
+  private List<SmbServer> getServers() throws IOException {
+    return mMasterProvider.getServers();
+  }
+
+  public List<String> getSharesForServer(Uri serverUri) {
+    List<String> shares = new ArrayList<>();
 
     try {
       SmbDir serverDir = mClient.openDir(serverUri.toString());
@@ -65,8 +92,7 @@ public class NetworkBrowser {
       List<DirectoryEntry> shareEntries = getDirectoryChildren(serverDir);
       for (DirectoryEntry shareEntry : shareEntries) {
         if (shareEntry.getType() == DirectoryEntry.FILE_SHARE) {
-          Uri shareUri = DocumentMetadata.buildChildUri(serverUri, shareEntry);
-          shares.add(new DocumentMetadata(shareUri, shareEntry));
+          shares.add(shareEntry.getName());
         }
       }
     } catch (IOException e) {
@@ -85,5 +111,57 @@ public class NetworkBrowser {
     }
 
     return children;
+  }
+
+  private static abstract class NetworkBrowsingTask<T> implements Runnable {
+    final OnTaskFinishedCallback<T> mCallback;
+    final WeakReference<NetworkBrowser> mBrowser;
+
+    NetworkBrowsingTask(OnTaskFinishedCallback<T> callback, NetworkBrowser browser) {
+      mCallback = callback;
+      mBrowser = new WeakReference<>(browser);
+    }
+
+    @Override
+    public void run() {
+      try {
+        T data = loadData();
+        mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, data, null);
+      } catch (IOException e) {
+        Log.e(TAG, "Failed to load data for network browsing: ", e);
+        mCallback.onTaskFinished(OnTaskFinishedCallback.FAILED, null, e);
+      }
+    }
+
+    abstract T loadData() throws IOException;
+  }
+
+  private static class  LoadServersTask extends NetworkBrowsingTask<List<SmbServer>> {
+    LoadServersTask(OnTaskFinishedCallback<List<SmbServer>> callback, NetworkBrowser browser) {
+      super(callback, browser);
+    }
+
+    List<SmbServer> loadData() throws IOException {
+      return super.mBrowser.get().getServers();
+    }
+  }
+
+  private static class  LoadSharesTask extends NetworkBrowsingTask<List<String>> {
+    final Uri mServerUri;
+    final SmbClient mClient;
+
+    LoadSharesTask(OnTaskFinishedCallback<List<String>> callback,
+                    Uri serverUri,
+                    SmbClient client,
+                    NetworkBrowser browser) {
+      super(callback, browser);
+
+      mServerUri = serverUri;
+      mClient = client;
+    }
+
+    List<String> loadData() throws IOException {
+      return super.mBrowser.get().getSharesForServer(mServerUri);
+    }
   }
 }

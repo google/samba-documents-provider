@@ -52,11 +52,17 @@ import com.google.android.sambadocumentsprovider.ShareManager;
 import com.google.android.sambadocumentsprovider.TaskManager;
 import com.google.android.sambadocumentsprovider.base.AuthFailedException;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
+import com.google.android.sambadocumentsprovider.browsing.NetworkBrowser;
+import com.google.android.sambadocumentsprovider.browsing.SmbServer;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.document.DocumentMetadata;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
 import com.google.android.sambadocumentsprovider.provider.SambaDocumentsProvider;
+
+import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.Future;
 
 public class MountServerActivity extends AppCompatActivity {
 
