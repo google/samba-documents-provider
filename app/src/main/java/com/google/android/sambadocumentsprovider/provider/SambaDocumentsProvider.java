@@ -92,6 +92,19 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       Document.COLUMN_ICON
   };
 
+  private final SmbServer browsingRoot = new SmbServer() {
+    @Override
+    public String getName() {
+      return getContext().getResources().getString(R.string.browsing_root_name);
+    }
+
+    @Override
+    public Uri getUri() {
+      return NetworkBrowser.SMB_BROWSING_URI;
+    }
+  };
+
+
   private final OnTaskFinishedCallback<Uri> mLoadDocumentCallback =
       new OnTaskFinishedCallback<Uri>() {
         @Override
@@ -223,19 +236,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     final Uri uri = toUri(documentId);
 
     if (documentId.equals(NetworkBrowser.SMB_BROWSING_URI.toString())) {
-      SmbServer server = new SmbServer() {
-        @Override
-        public String getName() {
-          return getContext().getResources().getString(R.string.browsing_root_name);
-        }
-
-        @Override
-        public Uri getUri() {
-          return NetworkBrowser.SMB_BROWSING_URI;
-        }
-      };
-
-      cursor.addRow(getCursorRowForServer(projection, server));
+      cursor.addRow(getCursorRowForBrowsingRoot(projection));
 
       return cursor;
     }
@@ -273,43 +274,11 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     if (BuildConfig.DEBUG) Log.d(TAG, "Querying children documents under " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
-    final Uri uri = toUri(documentId);
-
     if (documentId.equals(NetworkBrowser.SMB_BROWSING_URI.toString())) {
-      // This is the browsing root.
-
-      final NetworkBrowserCursor cursor = new NetworkBrowserCursor(projection);
-
-      if (mBrowsingStorage == null) {
-          Future serversFuture = mNetworkBrowser.getServersAsync(
-                  new OnTaskFinishedCallback<List<SmbServer>>() {
-                    @Override
-                    public void onTaskFinished(@Status int status, @Nullable List<SmbServer> item, @Nullable Exception exception) {
-                      if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
-
-                      mBrowsingStorage = item;
-
-                      getContext().getContentResolver().notifyChange(
-                              toNotifyUri(uri), null, false);
-                    }
-                  });
-
-        Bundle extra = new Bundle();
-        extra.putBoolean(DocumentsContract.EXTRA_LOADING, true);
-
-        cursor.setNotificationUri(getContext().getContentResolver(), toNotifyUri(uri));
-        cursor.setExtras(extra);
-        cursor.setFuture(serversFuture);
-      } else {
-        for (SmbServer server : mBrowsingStorage) {
-          cursor.addRow(getCursorRowForServer(projection, server));
-        }
-
-        mBrowsingStorage = null;
-      }
-
-      return cursor;
+      return getFilesSharesCursor(projection);
     }
+
+    final Uri uri = toUri(documentId);
 
     try {
       try (final CacheResult result = mCache.get(uri)) {
@@ -467,6 +436,49 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     }
 
     return row;
+  }
+
+  private Object[] getCursorRowForBrowsingRoot(String[] projection) {
+    return getCursorRowForServer(projection, browsingRoot);
+  }
+
+  private Cursor getFilesSharesCursor(String[] projection) {
+    final NetworkBrowserCursor cursor = new NetworkBrowserCursor(projection);
+
+    final Uri uri = toUri(NetworkBrowser.SMB_BROWSING_URI.toString());
+
+    if (mBrowsingStorage == null) {
+      Future serversFuture = mNetworkBrowser.getServersAsync(
+              new OnTaskFinishedCallback<List<SmbServer>>() {
+                @Override
+                public void onTaskFinished(
+                        @Status int status,
+                        @Nullable List<SmbServer> item,
+                        @Nullable Exception exception) {
+                  if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
+
+                  mBrowsingStorage = item;
+
+                  getContext().getContentResolver().notifyChange(
+                          toNotifyUri(uri), null, false);
+                }
+              });
+
+      Bundle extra = new Bundle();
+      extra.putBoolean(DocumentsContract.EXTRA_LOADING, true);
+
+      cursor.setNotificationUri(getContext().getContentResolver(), toNotifyUri(uri));
+      cursor.setExtras(extra);
+      cursor.setFuture(serversFuture);
+    } else {
+      for (SmbServer server : mBrowsingStorage) {
+        cursor.addRow(getCursorRowForServer(projection, server));
+      }
+
+      mBrowsingStorage = null;
+    }
+
+    return cursor;
   }
 
   @Override

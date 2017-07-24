@@ -77,14 +77,12 @@ public class DocumentMetadata {
 
   public int getIconResourceId() {
     switch (mEntry.getType()) {
-      case DirectoryEntry.BROWSING_ROOT:
-        return R.drawable.ic_cloud;
       case DirectoryEntry.SERVER:
         return R.drawable.ic_server;
       case DirectoryEntry.FILE_SHARE:
         return R.drawable.ic_folder_shared;
       default:
-        return R.drawable.ic_folder;
+        return 0;
     }
   }
 
@@ -131,7 +129,6 @@ public class DocumentMetadata {
       case DirectoryEntry.DIR:
       case DirectoryEntry.FILE_SHARE:
         return true;
-      case DirectoryEntry.BROWSING_ROOT:
       case DirectoryEntry.WORKGROUP:
       case DirectoryEntry.SERVER:
       case DirectoryEntry.FILE:
@@ -148,7 +145,6 @@ public class DocumentMetadata {
       case DirectoryEntry.WORKGROUP:
       case DirectoryEntry.SERVER:
       case DirectoryEntry.DIR:
-      case DirectoryEntry.BROWSING_ROOT:
         return Document.MIME_TYPE_DIR;
 
       case DirectoryEntry.LINK:
