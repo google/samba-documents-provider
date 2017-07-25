@@ -287,7 +287,10 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         final Bundle extra = new Bundle();
         final Uri notifyUri = toNotifyUri(uri);
         final DocumentCursor cursor = new DocumentCursor(projection);
-        if (result.getState() == CacheResult.CACHE_MISS) {
+
+        boolean isFileShare = uri.getPathSegments().isEmpty();
+
+        if (!isFileShare && result.getState() == CacheResult.CACHE_MISS) {
           // Last loading failed... Just feed the bitter fruit.
           mCache.throwLastExceptionIfAny(uri);
 
@@ -298,7 +301,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
           isLoading = true;
         } else { // At least we have something in cache.
-          final DocumentMetadata metadata = result.getItem();
+          final DocumentMetadata metadata = getMetadataFromCacheResult(result, uri);
 
           if (!Document.MIME_TYPE_DIR.equals(metadata.getMimeType())) {
             throw new IllegalArgumentException(documentId + " is not a folder.");
@@ -353,6 +356,16 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       throw e;
     } catch (Exception e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  private DocumentMetadata getMetadataFromCacheResult(CacheResult cacheResult, Uri documentUri) {
+    if (cacheResult.getState() == CacheResult.CACHE_MISS) {
+      final DocumentMetadata metadata = DocumentMetadata.createShare(documentUri);
+      mCache.put(metadata);
+      return metadata;
+    } else {
+      return cacheResult.getItem();
     }
   }
 

@@ -28,7 +28,6 @@ import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
 
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,7 +50,7 @@ public class NetworkBrowser {
   }
 
   public AsyncTask getServersAsync(OnTaskFinishedCallback<List<SmbServer>> callback) {
-    AsyncTask<Void, Void, List<SmbServer>> loadServersTask = new LoadServersTask(callback, this);
+    AsyncTask<Void, Void, List<SmbServer>> loadServersTask = new LoadServersTask(callback);
 
     mTaskManager.runTask(SMB_BROWSING_URI, loadServersTask);
 
@@ -73,26 +72,23 @@ public class NetworkBrowser {
     return children;
   }
 
-  private static class LoadServersTask extends AsyncTask<Void, Void, List<SmbServer>> {
+  private class LoadServersTask extends AsyncTask<Void, Void, List<SmbServer>> {
     final OnTaskFinishedCallback<List<SmbServer>> mCallback;
-    final WeakReference<NetworkBrowser> mBrowser;
 
     private BrowsingException mException;
 
-    LoadServersTask(OnTaskFinishedCallback<List<SmbServer>> callback, NetworkBrowser browser) {
+    LoadServersTask(OnTaskFinishedCallback<List<SmbServer>> callback) {
       mCallback = callback;
-      mBrowser = new WeakReference<>(browser);
     }
 
     List<SmbServer> loadData() throws BrowsingException {
-      return mBrowser.get().getServers();
+      return getServers();
     }
 
     @Override
     protected List<SmbServer> doInBackground(Void... voids) {
       try {
-        List<SmbServer> servers = loadData();
-        return servers;
+        return loadData();
       } catch (BrowsingException e) {
         Log.e(TAG, "Failed to load data for network browsing: ", e);
         mException = e;

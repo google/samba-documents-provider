@@ -75,14 +75,14 @@ public class DocumentMetadata {
     return mEntry.getType() == DirectoryEntry.FILE_SHARE;
   }
 
-  public int getIconResourceId() {
+  public Integer getIconResourceId() {
     switch (mEntry.getType()) {
       case DirectoryEntry.SERVER:
         return R.drawable.ic_server;
       case DirectoryEntry.FILE_SHARE:
         return R.drawable.ic_folder_shared;
       default:
-        return 0;
+        return null;
     }
   }
 

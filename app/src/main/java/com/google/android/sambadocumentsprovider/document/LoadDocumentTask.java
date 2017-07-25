@@ -40,11 +40,7 @@ public class LoadDocumentTask extends BiResultTask<Void, Void, DocumentMetadata>
 
   @Override
   public DocumentMetadata run(Void... args) throws Exception {
-    if (mUri.getPathSegments().isEmpty()) {
-      return DocumentMetadata.createShare(mUri);
-    } else {
-      return DocumentMetadata.fromUri(mUri, mClient);
-    }
+    return DocumentMetadata.fromUri(mUri, mClient);
   }
 
   @Override
