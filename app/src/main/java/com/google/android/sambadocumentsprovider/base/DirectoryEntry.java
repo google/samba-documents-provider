@@ -26,6 +26,7 @@ import java.lang.annotation.RetentionPolicy;
  * a workgroup, a share or a file.
  */
 public class DirectoryEntry {
+  
   @IntDef({WORKGROUP, SERVER, FILE_SHARE, PRINTER_SHARE, COMMS_SHARE, IPC_SHARE, DIR, FILE, LINK})
   @Retention(RetentionPolicy.SOURCE)
   @interface Type {}
