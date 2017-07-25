@@ -83,10 +83,5 @@ public class MasterBrowsingProvider implements NetworkBrowsingProvider {
     public Uri getUnresolvedUri() {
       return mUri;
     }
-
-    @Override
-    public Uri getResolvedUri() {
-      return mUri;
-    }
   }
 }

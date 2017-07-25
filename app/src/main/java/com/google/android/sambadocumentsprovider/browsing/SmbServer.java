@@ -27,9 +27,4 @@ public interface SmbServer {
    * Get an unresolved name of the Samba server.
    */
   Uri getUnresolvedUri();
-
-  /**
-   * Get a Uri for the Samba server containing a resolved server name.
-   */
-  Uri getResolvedUri();
 }

@@ -66,7 +66,7 @@ public class SambaProviderApplication extends Application {
 
     mShareManager = new ShareManager(context, credentialCache);
 
-    mNetworkBrowser = new NetworkBrowser(mSambaClient);
+    mNetworkBrowser = new NetworkBrowser(mSambaClient, mTaskManager);
 
     registerNetworkCallback(context);
   }

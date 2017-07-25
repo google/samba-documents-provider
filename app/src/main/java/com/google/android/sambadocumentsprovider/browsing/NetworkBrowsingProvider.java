@@ -17,6 +17,8 @@
 
 package com.google.android.sambadocumentsprovider.browsing;
 
+import android.net.Uri;
+
 import java.io.IOException;
 import java.util.List;
 

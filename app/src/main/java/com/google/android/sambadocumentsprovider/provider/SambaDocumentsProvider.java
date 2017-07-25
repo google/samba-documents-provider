@@ -27,6 +27,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
@@ -419,7 +420,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     for (int i = 0; i < projection.length; ++i) {
       switch (projection[i]) {
         case Document.COLUMN_DOCUMENT_ID:
-          row[i] = server.getResolvedUri();
+          row[i] = server.getUnresolvedUri();
           break;
         case Document.COLUMN_DISPLAY_NAME:
           row[i] = server.getDisplayName();
@@ -448,12 +449,12 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   }
 
   private Cursor getFilesSharesCursor(String[] projection) {
-    final NetworkBrowserCursor cursor = new NetworkBrowserCursor(projection);
+    final DocumentCursor cursor = new DocumentCursor(projection);
 
     final Uri uri = toUri(NetworkBrowser.SMB_BROWSING_URI.toString());
 
     if (mBrowsingStorage == null) {
-      Future serversFuture = mNetworkBrowser.getServersAsync(
+      AsyncTask serversTask = mNetworkBrowser.getServersAsync(
               new OnTaskFinishedCallback<List<SmbServer>>() {
                 @Override
                 public void onTaskFinished(
@@ -474,7 +475,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
       cursor.setNotificationUri(getContext().getContentResolver(), toNotifyUri(uri));
       cursor.setExtras(extra);
-      cursor.setFuture(serversFuture);
+      cursor.setLoadingTask(serversTask);
     } else {
       for (SmbServer server : mBrowsingStorage) {
         cursor.addRow(getCursorRowForServer(projection, server));

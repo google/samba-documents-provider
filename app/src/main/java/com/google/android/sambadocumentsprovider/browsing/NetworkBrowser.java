@@ -18,8 +18,10 @@
 package com.google.android.sambadocumentsprovider.browsing;
 
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.util.Log;
 
+import com.google.android.sambadocumentsprovider.TaskManager;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
@@ -31,8 +33,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class NetworkBrowser {
@@ -41,25 +41,21 @@ public class NetworkBrowser {
   private static final String TAG = "NetworkBrowser";
   
   private final NetworkBrowsingProvider mMasterProvider;
+  private final TaskManager mTaskManager;
 
-  private final ExecutorService mExecutor = Executors.newCachedThreadPool();
   private final Map<Uri, Future> mTasks = new HashMap<>();
 
-  public NetworkBrowser(SmbClient client) {
+  public NetworkBrowser(SmbClient client, TaskManager taskManager) {
     mMasterProvider = new MasterBrowsingProvider(client);
+    mTaskManager = taskManager;
   }
 
-  public Future getServersAsync(OnTaskFinishedCallback<List<SmbServer>> callback) {
-    synchronized (mTasks) {
-      Future getServersTask = mTasks.get(SMB_BROWSING_URI);
+  public AsyncTask getServersAsync(OnTaskFinishedCallback<List<SmbServer>> callback) {
+    AsyncTask<Void, Void, List<SmbServer>> loadServersTask = new LoadServersTask(callback, this);
 
-      if (getServersTask == null) {
-        getServersTask = mExecutor.submit(new LoadServersTask(callback, this));
-        mTasks.put(SMB_BROWSING_URI, getServersTask);
-      }
+    mTaskManager.runTask(SMB_BROWSING_URI, loadServersTask);
 
-      return getServersTask;
-    }
+    return loadServersTask;
   }
 
   private List<SmbServer> getServers() throws BrowsingException {
@@ -77,28 +73,39 @@ public class NetworkBrowser {
     return children;
   }
 
-  private static class LoadServersTask implements Runnable {
+  private static class LoadServersTask extends AsyncTask<Void, Void, List<SmbServer>> {
     final OnTaskFinishedCallback<List<SmbServer>> mCallback;
     final WeakReference<NetworkBrowser> mBrowser;
+
+    private BrowsingException mException;
 
     LoadServersTask(OnTaskFinishedCallback<List<SmbServer>> callback, NetworkBrowser browser) {
       mCallback = callback;
       mBrowser = new WeakReference<>(browser);
     }
 
+    List<SmbServer> loadData() throws BrowsingException {
+      return mBrowser.get().getServers();
+    }
+
     @Override
-    public void run() {
+    protected List<SmbServer> doInBackground(Void... voids) {
       try {
         List<SmbServer> servers = loadData();
-        mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, servers, null);
+        return servers;
       } catch (BrowsingException e) {
         Log.e(TAG, "Failed to load data for network browsing: ", e);
-        mCallback.onTaskFinished(OnTaskFinishedCallback.FAILED, null, e);
+        mException = e;
+        return null;
       }
     }
 
-    List<SmbServer> loadData() throws BrowsingException {
-      return mBrowser.get().getServers();
+    protected void onPostExecute(List<SmbServer> servers) {
+      if (servers != null) {
+        mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, servers, null);
+      } else {
+        mCallback.onTaskFinished(OnTaskFinishedCallback.FAILED, null, mException);
+      }
     }
   }
 }
