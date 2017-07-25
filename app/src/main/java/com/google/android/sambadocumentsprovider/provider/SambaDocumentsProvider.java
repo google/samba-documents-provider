@@ -50,7 +50,6 @@ import com.google.android.sambadocumentsprovider.base.AuthFailedException;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.base.DocumentCursor;
 import com.google.android.sambadocumentsprovider.browsing.NetworkBrowser;
-import com.google.android.sambadocumentsprovider.browsing.SmbServer;
 import com.google.android.sambadocumentsprovider.cache.CacheResult;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.document.DocumentMetadata;
@@ -67,7 +66,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Future;
 
 public class SambaDocumentsProvider extends DocumentsProvider {
 
@@ -92,19 +90,6 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       Document.COLUMN_LAST_MODIFIED,
       Document.COLUMN_ICON
   };
-
-  private final SmbServer browsingRoot = new SmbServer() {
-    @Override
-    public String getDisplayName() {
-      return getContext().getResources().getString(R.string.browsing_root_name);
-    }
-
-    @Override
-    public Uri getUnresolvedUri() {
-      return NetworkBrowser.SMB_BROWSING_URI;
-    }
-  };
-
 
   private final OnTaskFinishedCallback<Uri> mLoadDocumentCallback =
       new OnTaskFinishedCallback<Uri>() {
@@ -160,7 +145,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   private StorageManager mStorageManager;
   private NetworkBrowser mNetworkBrowser;
 
-  private List<SmbServer> mBrowsingStorage = null;
+  private List<String> mBrowsingStorage = null;
 
   @Override
   public boolean onCreate() {
@@ -422,16 +407,17 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   private Object[] getCursorRowForServer(
           String[] projection,
-          SmbServer server) {
+          String server) {
     Object[] row = new Object[projection.length];
 
     for (int i = 0; i < projection.length; ++i) {
       switch (projection[i]) {
         case Document.COLUMN_DOCUMENT_ID:
-          row[i] = server.getUnresolvedUri();
+          row[i] = NetworkBrowser.SMB_BROWSING_URI.toString() + server;
           break;
         case Document.COLUMN_DISPLAY_NAME:
-          row[i] = server.getDisplayName();
+          row[i] = server.isEmpty()
+                  ? getContext().getResources().getString(R.string.browsing_root_name) : server;
           break;
         case Document.COLUMN_FLAGS:
           row[i] = 0;
@@ -453,7 +439,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   }
 
   private Object[] getCursorRowForBrowsingRoot(String[] projection) {
-    return getCursorRowForServer(projection, browsingRoot);
+    return getCursorRowForServer(projection, "");
   }
 
   private Cursor getFilesSharesCursor(String[] projection) {
@@ -463,11 +449,11 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
     if (mBrowsingStorage == null) {
       AsyncTask serversTask = mNetworkBrowser.getServersAsync(
-              new OnTaskFinishedCallback<List<SmbServer>>() {
+              new OnTaskFinishedCallback<List<String>>() {
                 @Override
                 public void onTaskFinished(
                         @Status int status,
-                        @Nullable List<SmbServer> item,
+                        @Nullable List<String> item,
                         @Nullable Exception exception) {
                   if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
 
@@ -485,7 +471,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       cursor.setExtras(extra);
       cursor.setLoadingTask(serversTask);
     } else {
-      for (SmbServer server : mBrowsingStorage) {
+      for (String server : mBrowsingStorage) {
         cursor.addRow(getCursorRowForServer(projection, server));
       }
 

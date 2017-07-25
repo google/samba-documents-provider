@@ -39,8 +39,8 @@ public class MasterBrowsingProvider implements NetworkBrowsingProvider {
   }
 
   @Override
-  public List<SmbServer> getServers() throws BrowsingException {
-    List<SmbServer> serversList = new ArrayList<>();
+  public List<String> getServers() throws BrowsingException {
+    List<String> serversList = new ArrayList<>();
 
     try {
       SmbDir rootDir = mClient.openDir(MASTER_BROWSING_DIR);
@@ -53,7 +53,7 @@ public class MasterBrowsingProvider implements NetworkBrowsingProvider {
 
           for (DirectoryEntry server : servers) {
             if (server.getType() == DirectoryEntry.SERVER) {
-              serversList.add(new MasterSambaServer(server.getName()));
+              serversList.add(server.getName());
             }
           }
         }
@@ -63,25 +63,5 @@ public class MasterBrowsingProvider implements NetworkBrowsingProvider {
     }
 
     return serversList;
-  }
-
-  private static class MasterSambaServer implements SmbServer {
-    private final Uri mUri;
-    private final String mName;
-
-    MasterSambaServer(String name) {
-      mUri = Uri.parse(MASTER_BROWSING_DIR + name);
-      mName = name;
-    }
-
-    @Override
-    public String getDisplayName() {
-      return mName;
-    }
-
-    @Override
-    public Uri getUnresolvedUri() {
-      return mUri;
-    }
   }
 }

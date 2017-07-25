@@ -17,11 +17,11 @@
 
 package com.google.android.sambadocumentsprovider.browsing;
 
-import android.net.Uri;
-
-import java.io.IOException;
 import java.util.List;
 
 public interface NetworkBrowsingProvider {
-  List<SmbServer> getServers() throws BrowsingException;
+  /**
+   * Returns unresolved host names.
+   */
+  List<String> getServers() throws BrowsingException;
 }

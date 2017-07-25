@@ -49,15 +49,15 @@ public class NetworkBrowser {
     mTaskManager = taskManager;
   }
 
-  public AsyncTask getServersAsync(OnTaskFinishedCallback<List<SmbServer>> callback) {
-    AsyncTask<Void, Void, List<SmbServer>> loadServersTask = new LoadServersTask(callback);
+  public AsyncTask getServersAsync(OnTaskFinishedCallback<List<String>> callback) {
+    AsyncTask<Void, Void, List<String>> loadServersTask = new LoadServersTask(callback);
 
     mTaskManager.runTask(SMB_BROWSING_URI, loadServersTask);
 
     return loadServersTask;
   }
 
-  private List<SmbServer> getServers() throws BrowsingException {
+  private List<String> getServers() throws BrowsingException {
     return mMasterProvider.getServers();
   }
 
@@ -72,21 +72,21 @@ public class NetworkBrowser {
     return children;
   }
 
-  private class LoadServersTask extends AsyncTask<Void, Void, List<SmbServer>> {
-    final OnTaskFinishedCallback<List<SmbServer>> mCallback;
+  private class LoadServersTask extends AsyncTask<Void, Void, List<String>> {
+    final OnTaskFinishedCallback<List<String>> mCallback;
 
     private BrowsingException mException;
 
-    LoadServersTask(OnTaskFinishedCallback<List<SmbServer>> callback) {
+    LoadServersTask(OnTaskFinishedCallback<List<String>> callback) {
       mCallback = callback;
     }
 
-    List<SmbServer> loadData() throws BrowsingException {
+    List<String> loadData() throws BrowsingException {
       return getServers();
     }
 
     @Override
-    protected List<SmbServer> doInBackground(Void... voids) {
+    protected List<String> doInBackground(Void... voids) {
       try {
         return loadData();
       } catch (BrowsingException e) {
@@ -96,7 +96,7 @@ public class NetworkBrowser {
       }
     }
 
-    protected void onPostExecute(List<SmbServer> servers) {
+    protected void onPostExecute(List<String> servers) {
       if (servers != null) {
         mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, servers, null);
       } else {
