@@ -17,8 +17,6 @@
 
 package com.google.android.sambadocumentsprovider.browsing;
 
-import android.net.Uri;
-
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
@@ -29,12 +27,12 @@ import java.util.List;
 
 import static com.google.android.sambadocumentsprovider.browsing.NetworkBrowser.getDirectoryChildren;
 
-public class MasterBrowsingProvider implements NetworkBrowsingProvider {
+class MasterBrowsingProvider implements NetworkBrowsingProvider {
   private static final String MASTER_BROWSING_DIR = "smb://";
 
   private final SmbClient mClient;
 
-  public MasterBrowsingProvider(SmbClient client) {
+  MasterBrowsingProvider(SmbClient client) {
     mClient = client;
   }
 

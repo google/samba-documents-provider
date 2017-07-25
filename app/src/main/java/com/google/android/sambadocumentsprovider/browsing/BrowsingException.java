@@ -17,8 +17,8 @@
 
 package com.google.android.sambadocumentsprovider.browsing;
 
-public class BrowsingException extends Exception {
-  public BrowsingException(String message) {
+class BrowsingException extends Exception {
+  BrowsingException(String message) {
     super("Browsing failed: " + message);
   }
 }
