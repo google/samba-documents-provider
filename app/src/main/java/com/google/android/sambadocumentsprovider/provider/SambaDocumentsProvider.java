@@ -103,11 +103,6 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     public Uri getUnresolvedUri() {
       return NetworkBrowser.SMB_BROWSING_URI;
     }
-
-    @Override
-    public Uri getResolvedUri() {
-      return NetworkBrowser.SMB_BROWSING_URI;
-    }
   };
 
 
