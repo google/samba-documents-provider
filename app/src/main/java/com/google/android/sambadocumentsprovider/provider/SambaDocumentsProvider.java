@@ -27,6 +27,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
@@ -48,6 +49,7 @@ import com.google.android.sambadocumentsprovider.TaskManager;
 import com.google.android.sambadocumentsprovider.base.AuthFailedException;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.base.DocumentCursor;
+import com.google.android.sambadocumentsprovider.browsing.NetworkBrowser;
 import com.google.android.sambadocumentsprovider.cache.CacheResult;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.document.DocumentMetadata;
@@ -55,12 +57,11 @@ import com.google.android.sambadocumentsprovider.document.LoadChildrenTask;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.document.LoadDocumentTask;
 import com.google.android.sambadocumentsprovider.document.LoadStatTask;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbFile;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -87,7 +88,8 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       Document.COLUMN_FLAGS,
       Document.COLUMN_MIME_TYPE,
       Document.COLUMN_SIZE,
-      Document.COLUMN_LAST_MODIFIED
+      Document.COLUMN_LAST_MODIFIED,
+      Document.COLUMN_ICON
   };
 
   private final OnTaskFinishedCallback<Uri> mLoadDocumentCallback =
@@ -127,6 +129,22 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         }
       };
 
+  private final OnTaskFinishedCallback<List<String>> mLoadSharesFinishedCallback =
+    new OnTaskFinishedCallback<List<String>>() {
+      @Override
+      public void onTaskFinished(
+      @OnTaskFinishedCallback.Status int status,
+      @Nullable List<String> item,
+      @Nullable Exception exception) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
+
+        mBrowsingStorage = item;
+
+        getContext().getContentResolver().notifyChange(
+                toNotifyUri(toUri(NetworkBrowser.SMB_BROWSING_URI.toString())), null, false);
+      }
+    };
+
   private final MountedShareChangeListener mShareChangeListener = new MountedShareChangeListener() {
     @Override
     public void onMountedServerChange() {
@@ -142,6 +160,9 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   private DocumentCache mCache;
   private TaskManager mTaskManager;
   private StorageManager mStorageManager;
+  private NetworkBrowser mNetworkBrowser;
+
+  private List<String> mBrowsingStorage = new ArrayList<>();
 
   @Override
   public boolean onCreate() {
@@ -155,6 +176,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     mShareManager = SambaProviderApplication.getServerManager(context);
     mShareManager.addListener(mShareChangeListener);
     mStorageManager = (StorageManager) context.getSystemService(Context.STORAGE_SERVICE);
+    mNetworkBrowser = SambaProviderApplication.getNetworkBrowser(context);
 
     return mClient != null;
   }
@@ -165,6 +187,15 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     projection = (projection == null) ? DEFAULT_ROOT_PROJECTION : projection;
 
     MatrixCursor cursor = new MatrixCursor(projection, mShareManager.size());
+
+    cursor.addRow(new Object[] {
+      NetworkBrowser.SMB_BROWSING_URI.toString(),
+      NetworkBrowser.SMB_BROWSING_URI.toString(),
+      getContext().getResources().getString(R.string.browsing_root_name),
+      0,
+      R.drawable.ic_cloud,
+    });
+
     for (String uri : mShareManager) {
       final String name;
       final Uri parsedUri = Uri.parse(uri);
@@ -204,7 +235,15 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     if (BuildConfig.DEBUG) Log.d(TAG, "Querying document: " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
+    final MatrixCursor cursor = new MatrixCursor(projection);
     final Uri uri = toUri(documentId);
+
+    if (documentId.equals(NetworkBrowser.SMB_BROWSING_URI.toString())) {
+      cursor.addRow(getCursorRowForBrowsingRoot(projection));
+
+      return cursor;
+    }
+
     try {
       try (CacheResult result = mCache.get(uri)) {
 
@@ -221,7 +260,6 @@ public class SambaDocumentsProvider extends DocumentsProvider {
           metadata = result.getItem();
         }
 
-        final MatrixCursor cursor = new MatrixCursor(projection);
         cursor.addRow(getDocumentValues(projection, metadata));
 
         return cursor;
@@ -239,13 +277,27 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     if (BuildConfig.DEBUG) Log.d(TAG, "Querying children documents under " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
+    if (documentId.equals(NetworkBrowser.SMB_BROWSING_URI.toString())) {
+      return getFilesSharesCursor(projection);
+    }
+
     final Uri uri = toUri(documentId);
+
     try {
+      if (DocumentMetadata.isServerUri(uri)) {
+        try (final CacheResult result = mCache.get(uri)) {
+          if (result.getState() == CacheResult.CACHE_MISS) {
+            DocumentMetadata metadata = DocumentMetadata.createServer(uri);
+            mCache.put(metadata);
+          }
+        }
+      }
+
       try (final CacheResult result = mCache.get(uri)) {
         boolean isLoading = false;
-        final DocumentCursor cursor = new DocumentCursor(projection);
         final Bundle extra = new Bundle();
         final Uri notifyUri = toNotifyUri(uri);
+        final DocumentCursor cursor = new DocumentCursor(projection);
 
         if (result.getState() == CacheResult.CACHE_MISS) {
           // Last loading failed... Just feed the bitter fruit.
@@ -359,9 +411,74 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         case Document.COLUMN_LAST_MODIFIED:
           row[i] = metadata.getLastModified();
           break;
+        case Document.COLUMN_ICON:
+          row[i] = metadata.getIconResourceId();
+          break;
       }
     }
     return row;
+  }
+
+  private Object[] getCursorRowForServer(
+          String[] projection,
+          String server) {
+    Object[] row = new Object[projection.length];
+
+    for (int i = 0; i < projection.length; ++i) {
+      switch (projection[i]) {
+        case Document.COLUMN_DOCUMENT_ID:
+          row[i] = NetworkBrowser.SMB_BROWSING_URI.toString() + server;
+          break;
+        case Document.COLUMN_DISPLAY_NAME:
+          row[i] = server.isEmpty()
+                  ? getContext().getResources().getString(R.string.browsing_root_name) : server;
+          break;
+        case Document.COLUMN_FLAGS:
+          row[i] = 0;
+          break;
+        case Document.COLUMN_MIME_TYPE:
+          row[i] = Document.MIME_TYPE_DIR;
+          break;
+        case Document.COLUMN_SIZE:
+        case Document.COLUMN_LAST_MODIFIED:
+          row[i] = null;
+          break;
+        case Document.COLUMN_ICON:
+          row[i] = R.drawable.ic_server;
+          break;
+      }
+    }
+
+    return row;
+  }
+
+  private Object[] getCursorRowForBrowsingRoot(String[] projection) {
+    return getCursorRowForServer(projection, "");
+  }
+
+  private Cursor getFilesSharesCursor(String[] projection) {
+    final DocumentCursor cursor = new DocumentCursor(projection);
+
+    final Uri uri = toUri(NetworkBrowser.SMB_BROWSING_URI.toString());
+
+    if (mBrowsingStorage.isEmpty()) {
+      AsyncTask serversTask = mNetworkBrowser.getServersAsync(mLoadSharesFinishedCallback);
+
+      Bundle extra = new Bundle();
+      extra.putBoolean(DocumentsContract.EXTRA_LOADING, true);
+
+      cursor.setNotificationUri(getContext().getContentResolver(), toNotifyUri(uri));
+      cursor.setExtras(extra);
+      cursor.setLoadingTask(serversTask);
+    } else {
+      for (String server : mBrowsingStorage) {
+        cursor.addRow(getCursorRowForServer(projection, server));
+      }
+
+      mBrowsingStorage.clear();
+    }
+
+    return cursor;
   }
 
   @Override

@@ -25,6 +25,8 @@ import android.system.StructStat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
+
+import com.google.android.sambadocumentsprovider.R;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
@@ -32,7 +34,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -72,6 +73,18 @@ public class DocumentMetadata {
 
   public boolean isFileShare() {
     return mEntry.getType() == DirectoryEntry.FILE_SHARE;
+  }
+
+  public Integer getIconResourceId() {
+    switch (mEntry.getType()) {
+      case DirectoryEntry.SERVER:
+        return R.drawable.ic_server;
+      case DirectoryEntry.FILE_SHARE:
+        return R.drawable.ic_folder_shared;
+      default:
+        // Tells SAF to use the default icon.
+        return null;
+    }
   }
 
   public Long getLastModified() {
@@ -293,6 +306,10 @@ public class DocumentMetadata {
     return builder.build();
   }
 
+  public static boolean isServerUri(Uri uri) {
+    return uri.getPathSegments().isEmpty() && !uri.getAuthority().isEmpty();
+  }
+
   public static DocumentMetadata fromUri(Uri uri, SmbClient client) throws IOException {
     final List<String> pathSegments = uri.getPathSegments();
     if (pathSegments.isEmpty()) {
@@ -315,9 +332,17 @@ public class DocumentMetadata {
     return createShare(uri);
   }
 
+  public static DocumentMetadata createServer(Uri uri) {
+    return create(uri, DirectoryEntry.SERVER);
+  }
+
   public static DocumentMetadata createShare(Uri uri) {
+    return create(uri, DirectoryEntry.FILE_SHARE);
+  }
+
+  private static DocumentMetadata create(Uri uri, @DirectoryEntry.Type int type) {
     final DirectoryEntry entry =
-        new DirectoryEntry(DirectoryEntry.FILE_SHARE, "", uri.getLastPathSegment());
+            new DirectoryEntry(type, "", uri.getLastPathSegment());
     return new DocumentMetadata(uri, entry);
   }
 }

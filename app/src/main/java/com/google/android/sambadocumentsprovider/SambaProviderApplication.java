@@ -27,6 +27,7 @@ import android.net.NetworkRequest;
 
 import android.util.Log;
 import com.google.android.sambadocumentsprovider.SambaConfiguration.OnConfigurationChangedListener;
+import com.google.android.sambadocumentsprovider.browsing.NetworkBrowser;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.nativefacade.CredentialCache;
 import com.google.android.sambadocumentsprovider.nativefacade.SambaMessageLooper;
@@ -42,6 +43,7 @@ public class SambaProviderApplication extends Application {
 
   private SmbFacade mSambaClient;
   private ShareManager mShareManager;
+  private NetworkBrowser mNetworkBrowser;
 
   @Override
   public void onCreate() {
@@ -63,6 +65,8 @@ public class SambaProviderApplication extends Application {
     mSambaClient = looper.getClient();
 
     mShareManager = new ShareManager(context, credentialCache);
+
+    mNetworkBrowser = new NetworkBrowser(mSambaClient, mTaskManager);
 
     registerNetworkCallback(context);
   }
@@ -127,6 +131,10 @@ public class SambaProviderApplication extends Application {
 
   public static TaskManager getTaskManager(Context context) {
     return getApplication(context).mTaskManager;
+  }
+
+  public static NetworkBrowser getNetworkBrowser(Context context) {
+    return getApplication(context).mNetworkBrowser;
   }
 
   private static SambaProviderApplication getApplication(Context context) {
