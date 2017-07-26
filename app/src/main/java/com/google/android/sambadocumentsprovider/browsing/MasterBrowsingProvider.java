@@ -25,8 +25,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.google.android.sambadocumentsprovider.browsing.NetworkBrowser.getDirectoryChildren;
-
 class MasterBrowsingProvider implements NetworkBrowsingProvider {
   private static final String MASTER_BROWSING_DIR = "smb://";
 
@@ -61,5 +59,16 @@ class MasterBrowsingProvider implements NetworkBrowsingProvider {
     }
 
     return serversList;
+  }
+
+  private static List<DirectoryEntry> getDirectoryChildren(SmbDir dir) throws IOException {
+    List<DirectoryEntry> children = new ArrayList<>();
+
+    DirectoryEntry currentEntry;
+    while ((currentEntry = dir.readDir()) != null) {
+      children.add(currentEntry);
+    }
+
+    return children;
   }
 }

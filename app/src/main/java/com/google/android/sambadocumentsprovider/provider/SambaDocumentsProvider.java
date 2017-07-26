@@ -61,6 +61,7 @@ import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -128,6 +129,22 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         }
       };
 
+  private final OnTaskFinishedCallback<List<String>> mLoadSharesFinishedCallback =
+    new OnTaskFinishedCallback<List<String>>() {
+      @Override
+      public void onTaskFinished(
+      @OnTaskFinishedCallback.Status int status,
+      @Nullable List<String> item,
+      @Nullable Exception exception) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
+
+        mBrowsingStorage = item;
+
+        getContext().getContentResolver().notifyChange(
+                toNotifyUri(toUri(NetworkBrowser.SMB_BROWSING_URI.toString())), null, false);
+      }
+    };
+
   private final MountedShareChangeListener mShareChangeListener = new MountedShareChangeListener() {
     @Override
     public void onMountedServerChange() {
@@ -145,7 +162,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   private StorageManager mStorageManager;
   private NetworkBrowser mNetworkBrowser;
 
-  private List<String> mBrowsingStorage = null;
+  private List<String> mBrowsingStorage = new ArrayList<>();
 
   @Override
   public boolean onCreate() {
@@ -274,8 +291,12 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         final DocumentCursor cursor = new DocumentCursor(projection);
 
         boolean isFileShare = uri.getPathSegments().isEmpty();
+        if (isFileShare && result.getState() == CacheResult.CACHE_MISS) {
+          DocumentMetadata metadata = DocumentMetadata.createShare(uri);
+          mCache.put(metadata);
+        }
 
-        if (!isFileShare && result.getState() == CacheResult.CACHE_MISS) {
+        if (result.getState() == CacheResult.CACHE_MISS) {
           // Last loading failed... Just feed the bitter fruit.
           mCache.throwLastExceptionIfAny(uri);
 
@@ -286,7 +307,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
           isLoading = true;
         } else { // At least we have something in cache.
-          final DocumentMetadata metadata = getMetadataFromCacheResult(result, uri);
+          final DocumentMetadata metadata = result.getItem();
 
           if (!Document.MIME_TYPE_DIR.equals(metadata.getMimeType())) {
             throw new IllegalArgumentException(documentId + " is not a folder.");
@@ -341,16 +362,6 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       throw e;
     } catch (Exception e) {
       throw new IllegalStateException(e);
-    }
-  }
-
-  private DocumentMetadata getMetadataFromCacheResult(CacheResult cacheResult, Uri documentUri) {
-    if (cacheResult.getState() == CacheResult.CACHE_MISS) {
-      final DocumentMetadata metadata = DocumentMetadata.createShare(documentUri);
-      mCache.put(metadata);
-      return metadata;
-    } else {
-      return cacheResult.getItem();
     }
   }
 
@@ -447,22 +458,8 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
     final Uri uri = toUri(NetworkBrowser.SMB_BROWSING_URI.toString());
 
-    if (mBrowsingStorage == null) {
-      AsyncTask serversTask = mNetworkBrowser.getServersAsync(
-              new OnTaskFinishedCallback<List<String>>() {
-                @Override
-                public void onTaskFinished(
-                        @Status int status,
-                        @Nullable List<String> item,
-                        @Nullable Exception exception) {
-                  if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
-
-                  mBrowsingStorage = item;
-
-                  getContext().getContentResolver().notifyChange(
-                          toNotifyUri(uri), null, false);
-                }
-              });
+    if (mBrowsingStorage.isEmpty()) {
+      AsyncTask serversTask = mNetworkBrowser.getServersAsync(mLoadSharesFinishedCallback);
 
       Bundle extra = new Bundle();
       extra.putBoolean(DocumentsContract.EXTRA_LOADING, true);
@@ -475,7 +472,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         cursor.addRow(getCursorRowForServer(projection, server));
       }
 
-      mBrowsingStorage = null;
+      mBrowsingStorage.clear();
     }
 
     return cursor;

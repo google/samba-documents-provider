@@ -82,6 +82,7 @@ public class DocumentMetadata {
       case DirectoryEntry.FILE_SHARE:
         return R.drawable.ic_folder_shared;
       default:
+        // Tells SAF to use the default icon.
         return null;
     }
   }

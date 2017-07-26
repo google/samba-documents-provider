@@ -61,17 +61,6 @@ public class NetworkBrowser {
     return mMasterProvider.getServers();
   }
 
-  static List<DirectoryEntry> getDirectoryChildren(SmbDir dir) throws IOException {
-    List<DirectoryEntry> children = new ArrayList<>();
-
-    DirectoryEntry currentEntry;
-    while ((currentEntry = dir.readDir()) != null) {
-      children.add(currentEntry);
-    }
-
-    return children;
-  }
-
   private class LoadServersTask extends AsyncTask<Void, Void, List<String>> {
     final OnTaskFinishedCallback<List<String>> mCallback;
 
