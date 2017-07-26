@@ -29,7 +29,7 @@ public class DirectoryEntry {
 
   @IntDef({WORKGROUP, SERVER, FILE_SHARE, PRINTER_SHARE, COMMS_SHARE, IPC_SHARE, DIR, FILE, LINK})
   @Retention(RetentionPolicy.SOURCE)
-  @interface Type {}
+  public @interface Type {}
   public static final int WORKGROUP = 1;
   public static final int SERVER = 2;
   public static final int FILE_SHARE = 3;

@@ -306,6 +306,10 @@ public class DocumentMetadata {
     return builder.build();
   }
 
+  public static boolean isServerUri(Uri uri) {
+    return uri.getPathSegments().isEmpty() && !uri.getAuthority().isEmpty();
+  }
+
   public static DocumentMetadata fromUri(Uri uri, SmbClient client) throws IOException {
     final List<String> pathSegments = uri.getPathSegments();
     if (pathSegments.isEmpty()) {
@@ -328,9 +332,17 @@ public class DocumentMetadata {
     return createShare(uri);
   }
 
+  public static DocumentMetadata createServer(Uri uri) {
+    return create(uri, DirectoryEntry.SERVER);
+  }
+
   public static DocumentMetadata createShare(Uri uri) {
+    return create(uri, DirectoryEntry.FILE_SHARE);
+  }
+
+  private static DocumentMetadata create(Uri uri, @DirectoryEntry.Type int type) {
     final DirectoryEntry entry =
-        new DirectoryEntry(DirectoryEntry.FILE_SHARE, "", uri.getLastPathSegment());
+            new DirectoryEntry(type, "", uri.getLastPathSegment());
     return new DocumentMetadata(uri, entry);
   }
 }

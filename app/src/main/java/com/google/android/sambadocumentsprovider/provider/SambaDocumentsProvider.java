@@ -284,10 +284,10 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     final Uri uri = toUri(documentId);
 
     try {
-      if (uri.getPathSegments().isEmpty()) { // This is a file share.
+      if (DocumentMetadata.isServerUri(uri)) {
         try (final CacheResult result = mCache.get(uri)) {
           if (result.getState() == CacheResult.CACHE_MISS) {
-            DocumentMetadata metadata = DocumentMetadata.createShare(uri);
+            DocumentMetadata metadata = DocumentMetadata.createServer(uri);
             mCache.put(metadata);
           }
         }
