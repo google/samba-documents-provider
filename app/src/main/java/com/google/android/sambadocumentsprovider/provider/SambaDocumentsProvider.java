@@ -284,17 +284,20 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     final Uri uri = toUri(documentId);
 
     try {
+      if (uri.getPathSegments().isEmpty()) { // This is a file share.
+        try (final CacheResult result = mCache.get(uri)) {
+          if (result.getState() == CacheResult.CACHE_MISS) {
+            DocumentMetadata metadata = DocumentMetadata.createShare(uri);
+            mCache.put(metadata);
+          }
+        }
+      }
+
       try (final CacheResult result = mCache.get(uri)) {
         boolean isLoading = false;
         final Bundle extra = new Bundle();
         final Uri notifyUri = toNotifyUri(uri);
         final DocumentCursor cursor = new DocumentCursor(projection);
-
-        boolean isFileShare = uri.getPathSegments().isEmpty();
-        if (isFileShare && result.getState() == CacheResult.CACHE_MISS) {
-          DocumentMetadata metadata = DocumentMetadata.createShare(uri);
-          mCache.put(metadata);
-        }
 
         if (result.getState() == CacheResult.CACHE_MISS) {
           // Last loading failed... Just feed the bitter fruit.
