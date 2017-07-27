@@ -19,7 +19,7 @@ package com.google.android.sambadocumentsprovider.browsing;
 
 import java.util.List;
 
-interface NetworkBrowsingProvider {
+public interface NetworkBrowsingProvider {
   /**
    * Returns unresolved host names.
    */
