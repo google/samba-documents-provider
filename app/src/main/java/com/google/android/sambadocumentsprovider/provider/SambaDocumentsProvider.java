@@ -75,75 +75,75 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   private static final String TAG = "SambaDocumentsProvider";
 
   private static final String[] DEFAULT_ROOT_PROJECTION = {
-          Root.COLUMN_ROOT_ID,
-          Root.COLUMN_DOCUMENT_ID,
-          Root.COLUMN_TITLE,
-          Root.COLUMN_FLAGS,
-          Root.COLUMN_ICON
+      Root.COLUMN_ROOT_ID,
+      Root.COLUMN_DOCUMENT_ID,
+      Root.COLUMN_TITLE,
+      Root.COLUMN_FLAGS,
+      Root.COLUMN_ICON
   };
 
   private static final String[] DEFAULT_DOCUMENT_PROJECTION = {
-          Document.COLUMN_DOCUMENT_ID,
-          Document.COLUMN_DISPLAY_NAME,
-          Document.COLUMN_FLAGS,
-          Document.COLUMN_MIME_TYPE,
-          Document.COLUMN_SIZE,
-          Document.COLUMN_LAST_MODIFIED,
-          Document.COLUMN_ICON
+      Document.COLUMN_DOCUMENT_ID,
+      Document.COLUMN_DISPLAY_NAME,
+      Document.COLUMN_FLAGS,
+      Document.COLUMN_MIME_TYPE,
+      Document.COLUMN_SIZE,
+      Document.COLUMN_LAST_MODIFIED,
+      Document.COLUMN_ICON
   };
 
   private final OnTaskFinishedCallback<Uri> mLoadDocumentCallback =
-          new OnTaskFinishedCallback<Uri>() {
-            @Override
-            public void onTaskFinished(@Status int status, @Nullable Uri uri, Exception exception) {
-              getContext().getContentResolver().notifyChange(toNotifyUri(uri), null, false);
-            }
-          };
+      new OnTaskFinishedCallback<Uri>() {
+        @Override
+        public void onTaskFinished(@Status int status, @Nullable Uri uri, Exception exception) {
+          getContext().getContentResolver().notifyChange(toNotifyUri(uri), null, false);
+        }
+      };
 
   private final OnTaskFinishedCallback<DocumentMetadata> mLoadChildrenCallback =
-          new OnTaskFinishedCallback<DocumentMetadata>() {
-            @Override
-            public void onTaskFinished(@Status int status, DocumentMetadata metadata,
-                                       Exception exception) {
-              // Notify remote side that we get the list even though we don't have the stat yet.
-              // If it failed we still should notify the remote side that the loading failed.
-              getContext().getContentResolver().notifyChange(
-                      toNotifyUri(metadata.getUri()), null, false);
-            }
-          };
+      new OnTaskFinishedCallback<DocumentMetadata>() {
+        @Override
+        public void onTaskFinished(@Status int status, DocumentMetadata metadata,
+            Exception exception) {
+          // Notify remote side that we get the list even though we don't have the stat yet.
+          // If it failed we still should notify the remote side that the loading failed.
+          getContext().getContentResolver().notifyChange(
+              toNotifyUri(metadata.getUri()), null, false);
+        }
+      };
 
   private final OnTaskFinishedCallback<String> mWriteFinishedCallback =
-          new OnTaskFinishedCallback<String>() {
-            @Override
-            public void onTaskFinished(
-                    @Status int status, @Nullable String item, Exception exception) {
-              final Uri uri = toUri(item);
-              try (final CacheResult result = mCache.get(uri)) {
-                if (result.getState() != CacheResult.CACHE_MISS) {
-                  result.getItem().reset();
-                }
-              }
-
-              final Uri parentUri = DocumentMetadata.buildParentUri(uri);
-              getContext().getContentResolver().notifyChange(toNotifyUri(parentUri), null, false);
+      new OnTaskFinishedCallback<String>() {
+        @Override
+        public void onTaskFinished(
+            @Status int status, @Nullable String item, Exception exception) {
+          final Uri uri = toUri(item);
+          try (final CacheResult result = mCache.get(uri)) {
+            if (result.getState() != CacheResult.CACHE_MISS) {
+              result.getItem().reset();
             }
-          };
+          }
+
+          final Uri parentUri = DocumentMetadata.buildParentUri(uri);
+          getContext().getContentResolver().notifyChange(toNotifyUri(parentUri), null, false);
+        }
+      };
 
   private final OnTaskFinishedCallback<List<String>> mLoadSharesFinishedCallback =
-          new OnTaskFinishedCallback<List<String>>() {
-            @Override
-            public void onTaskFinished(
-                    @OnTaskFinishedCallback.Status int status,
-                    @Nullable List<String> item,
-                    @Nullable Exception exception) {
-              if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
+    new OnTaskFinishedCallback<List<String>>() {
+      @Override
+      public void onTaskFinished(
+      @OnTaskFinishedCallback.Status int status,
+      @Nullable List<String> item,
+      @Nullable Exception exception) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "Browsing callback");
 
-              mBrowsingStorage = item;
+        mBrowsingStorage = item;
 
-              getContext().getContentResolver().notifyChange(
-                      toNotifyUri(toUri(NetworkBrowser.SMB_BROWSING_URI.toString())), null, false);
-            }
-          };
+        getContext().getContentResolver().notifyChange(
+                toNotifyUri(toUri(NetworkBrowser.SMB_BROWSING_URI.toString())), null, false);
+      }
+    };
 
   private final MountedShareChangeListener mShareChangeListener = new MountedShareChangeListener() {
     @Override
@@ -189,11 +189,11 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     MatrixCursor cursor = new MatrixCursor(projection, mShareManager.size());
 
     cursor.addRow(new Object[] {
-            NetworkBrowser.SMB_BROWSING_URI.toString(),
-            NetworkBrowser.SMB_BROWSING_URI.toString(),
-            getContext().getResources().getString(R.string.browsing_root_name),
-            0,
-            R.drawable.ic_cloud,
+      NetworkBrowser.SMB_BROWSING_URI.toString(),
+      NetworkBrowser.SMB_BROWSING_URI.toString(),
+      getContext().getResources().getString(R.string.browsing_root_name),
+      0,
+      R.drawable.ic_cloud,
     });
 
     for (String uri : mShareManager) {
@@ -211,11 +211,11 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         name = metadata.getDisplayName();
 
         cursor.addRow(new Object[] {
-                toRootId(metadata),
-                toDocumentId(parsedUri),
-                name,
-                Root.FLAG_SUPPORTS_CREATE | Root.FLAG_SUPPORTS_IS_CHILD,
-                R.drawable.ic_folder_shared
+            toRootId(metadata),
+            toDocumentId(parsedUri),
+            name,
+            Root.FLAG_SUPPORTS_CREATE | Root.FLAG_SUPPORTS_IS_CHILD,
+            R.drawable.ic_folder_shared
         });
       }
 
@@ -273,7 +273,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public Cursor queryChildDocuments(String documentId, String[] projection, String sortOrder)
-          throws FileNotFoundException {
+      throws FileNotFoundException {
     if (BuildConfig.DEBUG) Log.d(TAG, "Querying children documents under " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
@@ -304,7 +304,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
           mCache.throwLastExceptionIfAny(uri);
 
           final LoadDocumentTask task =
-                  new LoadDocumentTask(uri, mClient, mCache, mLoadDocumentCallback);
+              new LoadDocumentTask(uri, mClient, mCache, mLoadDocumentCallback);
           mTaskManager.runTask(uri, task);
           cursor.setLoadingTask(task);
 
@@ -321,7 +321,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
           final Map<Uri, DocumentMetadata> childrenMap = metadata.getChildren();
           if (childrenMap == null || result.getState() == CacheResult.CACHE_EXPIRED) {
             final LoadChildrenTask task =
-                    new LoadChildrenTask(metadata, mClient, mCache, mLoadChildrenCallback);
+                new LoadChildrenTask(metadata, mClient, mCache, mLoadChildrenCallback);
             mTaskManager.runTask(uri, task);
             cursor.setLoadingTask(task);
 
@@ -340,13 +340,13 @@ public class SambaDocumentsProvider extends DocumentsProvider {
             }
             if (!isLoading && !docMap.isEmpty()) {
               LoadStatTask task = new LoadStatTask(docMap, mClient,
-                      new OnTaskFinishedCallback<Map<Uri, DocumentMetadata>>() {
-                        @Override
-                        public void onTaskFinished(
-                                @Status int status, Map<Uri, DocumentMetadata> item, Exception exception) {
-                          getContext().getContentResolver().notifyChange(notifyUri, null, false);
-                        }
-                      });
+                  new OnTaskFinishedCallback<Map<Uri, DocumentMetadata>>() {
+                    @Override
+                    public void onTaskFinished(
+                        @Status int status, Map<Uri, DocumentMetadata> item, Exception exception) {
+                      getContext().getContentResolver().notifyChange(notifyUri, null, false);
+                    }
+                  });
               mTaskManager.runTask(uri, task);
               cursor.setLoadingTask(task);
 
@@ -381,7 +381,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
   }
 
   private Object[] getDocumentValues(
-          String[] projection, DocumentMetadata metadata) {
+      String[] projection, DocumentMetadata metadata) {
     Object[] row = new Object[projection.length];
     for (int i = 0; i < projection.length; ++i) {
       switch (projection[i]) {
@@ -483,15 +483,15 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public String createDocument(String parentDocumentId, String mimeType, String displayName)
-          throws FileNotFoundException {
+      throws FileNotFoundException {
     try {
       final Uri parentUri = toUri(parentDocumentId);
 
       boolean isDir = Document.MIME_TYPE_DIR.equals(mimeType);
       final DirectoryEntry entry = new DirectoryEntry(
-              isDir ? DirectoryEntry.DIR : DirectoryEntry.FILE,
-              "", // comment
-              displayName);
+          isDir ? DirectoryEntry.DIR : DirectoryEntry.FILE,
+          "", // comment
+          displayName);
       final Uri uri = DocumentMetadata.buildChildUri(parentUri, entry);
 
       if (isDir) {
@@ -617,15 +617,15 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public void removeDocument(String documentId, String parentDocumentId)
-          throws FileNotFoundException {
+      throws FileNotFoundException {
     // documentId is hierarchical. It can only have one parent.
     deleteDocument(documentId);
   }
 
   @Override
   public String moveDocument(
-          String sourceDocumentId, String sourceParentDocumentId, String targetParentDocumentId)
-          throws FileNotFoundException {
+      String sourceDocumentId, String sourceParentDocumentId, String targetParentDocumentId)
+    throws FileNotFoundException {
     try {
       final Uri uri = toUri(sourceDocumentId);
       final Uri targetParentUri = toUri(targetParentDocumentId);
@@ -637,19 +637,19 @@ public class SambaDocumentsProvider extends DocumentsProvider {
       final List<String> pathSegmentsOfSource = uri.getPathSegments();
       final List<String> pathSegmentsOfTargetParent = targetParentUri.getPathSegments();
       if (pathSegmentsOfSource.isEmpty() ||
-              pathSegmentsOfTargetParent.isEmpty() ||
-              !Objects.equals(pathSegmentsOfSource.get(0), pathSegmentsOfTargetParent.get(0))) {
+          pathSegmentsOfTargetParent.isEmpty() ||
+          !Objects.equals(pathSegmentsOfSource.get(0), pathSegmentsOfTargetParent.get(0))) {
         throw new UnsupportedOperationException("Instance move across shares are not supported.");
       }
 
       final Uri targetUri = DocumentMetadata
-              .buildChildUri(targetParentUri, uri.getLastPathSegment());
+          .buildChildUri(targetParentUri, uri.getLastPathSegment());
       mClient.rename(uri.toString(), targetUri.toString());
 
       revokeDocumentPermission(sourceDocumentId);
 
       getContext().getContentResolver()
-              .notifyChange(toNotifyUri(DocumentMetadata.buildParentUri(uri)), null, false);
+          .notifyChange(toNotifyUri(DocumentMetadata.buildParentUri(uri)), null, false);
       getContext().getContentResolver().notifyChange(toNotifyUri(targetParentUri), null, false);
 
       try (CacheResult result = mCache.get(uri)) {
@@ -672,7 +672,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public ParcelFileDescriptor openDocument(String documentId, String mode,
-                                           CancellationSignal cancellationSignal) throws FileNotFoundException {
+      CancellationSignal cancellationSignal) throws FileNotFoundException {
     if (BuildConfig.DEBUG) Log.d(TAG, "Opening document " + documentId + " with mode " + mode);
 
     try {
@@ -680,7 +680,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         OnTaskFinishedCallback<String> callback =
-                mode.contains("w") ? mWriteFinishedCallback : null;
+            mode.contains("w") ? mWriteFinishedCallback : null;
         return mClient.openProxyFile(
                 uri,
                 mode,
@@ -709,13 +709,13 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     switch (mode) {
       case "r": {
         final ReadFileTask task = new ReadFileTask(
-                uri, mClient, pipe[1], mBufferPool);
+            uri, mClient, pipe[1], mBufferPool);
         mTaskManager.runIoTask(task);
       }
       return pipe[0];
       case "w": {
         final WriteFileTask task =
-                new WriteFileTask(uri, mClient, pipe[0], mBufferPool, mWriteFinishedCallback);
+            new WriteFileTask(uri, mClient, pipe[0], mBufferPool, mWriteFinishedCallback);
         mTaskManager.runIoTask(task);
         return pipe[1];
       }
