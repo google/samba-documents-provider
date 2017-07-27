@@ -22,30 +22,24 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.google.android.sambadocumentsprovider.TaskManager;
-import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
+import com.google.android.sambadocumentsprovider.browsing.broadcast.BroadcastBrowsingProvider;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
-import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Future;
 
 public class NetworkBrowser {
   public static final Uri SMB_BROWSING_URI = Uri.parse("smb://");
 
   private static final String TAG = "NetworkBrowser";
-  
-  private final NetworkBrowsingProvider mMasterProvider;
-  private final TaskManager mTaskManager;
 
-  private final Map<Uri, Future> mTasks = new HashMap<>();
+  private final NetworkBrowsingProvider mMasterProvider;
+  private final NetworkBrowsingProvider mBroadcastProvider;
+  private final TaskManager mTaskManager;
 
   public NetworkBrowser(SmbClient client, TaskManager taskManager) {
     mMasterProvider = new MasterBrowsingProvider(client);
+    mBroadcastProvider = new BroadcastBrowsingProvider();
     mTaskManager = taskManager;
   }
 
@@ -58,7 +52,19 @@ public class NetworkBrowser {
   }
 
   private List<String> getServers() throws BrowsingException {
-    return mMasterProvider.getServers();
+    List<String> servers = null;
+
+    try {
+      servers = mMasterProvider.getServers();
+    } catch (BrowsingException e) {
+      Log.e(TAG, "Master browsing failed", e);
+    }
+
+    if (servers == null || servers.isEmpty()) {
+      return mBroadcastProvider.getServers();
+    }
+
+    return servers;
   }
 
   private class LoadServersTask extends AsyncTask<Void, Void, List<String>> {
