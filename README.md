@@ -10,6 +10,9 @@ This app is built on top of Samba 4.5.1.
 Android SDK and NDK r15b or above are required to build this app. Android Studio is highly
 recommended.
 
+This build guide is only tested on Ubuntu. Changes to make it build on other platforms are
+welcome.
+
 ### Build Steps
 1. Download and unarchive Samba 4.5.1 [source code][samba-source].
 2. Change directory to the root of Samba source code.
