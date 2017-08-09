@@ -45,6 +45,7 @@ public class ShareManager implements Iterable<String> {
 
   // JSON value
   private static final String URI_KEY = "uri";
+  private static final String MOUNT_KEY = "mount";
   private static final String CREDENTIAL_TUPLE_KEY = "credentialTuple";
   private static final String WORKGROUP_KEY = "workgroup";
   private static final String USERNAME_KEY = "username";
@@ -52,6 +53,7 @@ public class ShareManager implements Iterable<String> {
 
   private final SharedPreferences mPref;
   private final Set<String> mServerStringSet;
+  private final Set<String> mMountedServerSet = new HashSet<>();
   private final Map<String, String> mServerStringMap = new HashMap<>();
   private final CredentialCache mCredentialCache;
 
@@ -61,13 +63,13 @@ public class ShareManager implements Iterable<String> {
     mCredentialCache = credentialCache;
 
     mPref = context.getSharedPreferences(SERVER_CACHE_PREF_KEY, Context.MODE_PRIVATE);
-    // Loading mounted servers
+    // Loading saved servers.
     final Set<String> serverStringSet =
         mPref.getStringSet(SERVER_STRING_SET_KEY, Collections.<String> emptySet());
-    final Map<String, CredentialTuple> credentialMap = new HashMap<>(serverStringSet.size());
+    final Map<String, ShareTuple> shareMap = new HashMap<>(serverStringSet.size());
     for (String serverString : serverStringSet) {
       // TODO: Add decryption
-      String uri = decode(serverString, credentialMap);
+      String uri = decode(serverString, shareMap);
       if (uri != null) {
         mServerStringMap.put(uri, serverString);
       }
@@ -75,24 +77,89 @@ public class ShareManager implements Iterable<String> {
 
     mServerStringSet = new HashSet<>(serverStringSet);
 
-    for (Map.Entry<String, CredentialTuple> server : credentialMap.entrySet()) {
-      final CredentialTuple tuple = server.getValue();
+    for (Map.Entry<String, ShareTuple> server : shareMap.entrySet()) {
+      final ShareTuple tuple = server.getValue();
+
+      if (tuple.mIsMounted) {
+        mMountedServerSet.add(server.getKey());
+      }
+
       mCredentialCache.putCredential(
           server.getKey(), tuple.mWorkgroup, tuple.mUsername, tuple.mPassword);
     }
   }
 
-  public synchronized void mountServer(
-      String uri, String workgroup, String username, String password, ShareMountChecker checker)
-      throws IOException {
-    if (mServerStringMap.containsKey(uri)) {
-      throw new IllegalStateException("Uri " + uri + " is already mounted.");
+  /**
+   * Save the server and credentials to permanent storage.
+   * Throw an exception if a server with such a uri is already present.
+   */
+  public synchronized void addServer(
+          String uri, String workgroup, String username, String password,
+          ShareMountChecker checker, boolean mount) throws IOException {
+
+    if (mMountedServerSet.contains(uri)) {
+      throw new IllegalStateException("Uri " + uri + " is already stored.");
     }
 
+    saveServerInfo(uri, workgroup, username, password, checker, mount);
+  }
+
+  /**
+   * Update the server info. If a server with such a uri doesn't exist, create it.
+   */
+  public synchronized void addOrUpdateServer(
+          String uri, String workgroup, String username, String password,
+          ShareMountChecker checker, boolean mount) throws IOException {
+    saveServerInfo(uri, workgroup, username, password, checker, mount);
+  }
+
+  private void saveServerInfo(
+          String uri, String workgroup, String username, String password,
+          ShareMountChecker checker, boolean mount) throws IOException {
+
+    checkServerCredentials(uri, workgroup, username, password, checker);
+
     final boolean hasPassword = !TextUtils.isEmpty(username) && !TextUtils.isEmpty(password);
-    if (hasPassword) {
+    final ShareTuple tuple = hasPassword
+            ? new ShareTuple(workgroup, username, password, mount)
+            : ShareTuple.EMPTY_TUPLE;
+
+    updateServersData(uri, tuple, mount);
+  }
+
+  private void updateServersData(
+          String uri, ShareTuple tuple, boolean shouldNotify) {
+    final String serverString = encode(uri, tuple);
+    if (serverString == null) {
+      throw new IllegalStateException("Failed to encode credential tuple.");
+    }
+    // TODO: Add encryption
+    mServerStringSet.add(serverString);
+    if (tuple.mIsMounted) {
+      mMountedServerSet.add(uri);
+    } else {
+      mMountedServerSet.remove(uri);
+    }
+    mPref.edit().putStringSet(SERVER_STRING_SET_KEY, mServerStringSet).apply();
+    mServerStringMap.put(uri, serverString);
+
+    if (shouldNotify) {
+      notifyServerChange();
+    }
+  }
+
+  private void checkServerCredentials(
+      String uri, String workgroup, String username, String password, ShareMountChecker checker)
+      throws IOException {
+
+    if (!username.isEmpty() && !password.isEmpty()) {
       mCredentialCache.putCredential(uri, workgroup, username, password);
     }
+
+    runMountChecker(uri, checker);
+  }
+
+  private void runMountChecker(String uri, ShareMountChecker checker) throws IOException {
     try {
       checker.checkShareMounting();
     } catch (Exception e) {
@@ -100,20 +167,6 @@ public class ShareManager implements Iterable<String> {
       mCredentialCache.removeCredential(uri);
       throw e;
     }
-
-    final CredentialTuple tuple = hasPassword
-        ? new CredentialTuple(workgroup, username, password)
-        : CredentialTuple.EMPTY_TUPLE;
-    final String serverString = encode(uri, tuple);
-    if (serverString == null) {
-      throw new IllegalStateException("Failed to encode credential tuple.");
-    }
-    // TODO: Add encryption
-    mServerStringSet.add(serverString);
-    mPref.edit().putStringSet(SERVER_STRING_SET_KEY, mServerStringSet).apply();
-
-    mServerStringMap.put(uri, serverString);
-    notifyServerChange();
   }
 
   public synchronized boolean unmountServer(String uri) {
@@ -149,6 +202,10 @@ public class ShareManager implements Iterable<String> {
     return mServerStringMap.containsKey(uri);
   }
 
+  public synchronized boolean isShareMounted(String uri) {
+    return mMountedServerSet.contains(uri);
+  }
+
   private void notifyServerChange() {
     for (int i = mListeners.size() - 1; i >= 0; --i) {
       mListeners.get(i).onMountedServerChange();
@@ -163,7 +220,7 @@ public class ShareManager implements Iterable<String> {
     mListeners.remove(listener);
   }
 
-  private static String encode(String uri, CredentialTuple tuple) {
+  private static String encode(String uri, ShareTuple tuple) {
     final StringWriter stringWriter = new StringWriter();
     try (final JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
       jsonWriter.beginObject();
@@ -180,25 +237,26 @@ public class ShareManager implements Iterable<String> {
     return stringWriter.toString();
   }
 
-  private static void encodeTuple(JsonWriter writer, CredentialTuple tuple) throws IOException {
-    if (tuple == CredentialTuple.EMPTY_TUPLE) {
+  private static void encodeTuple(JsonWriter writer, ShareTuple tuple) throws IOException {
+    if (tuple == ShareTuple.EMPTY_TUPLE) {
       writer.nullValue();
     } else {
       writer.beginObject();
       writer.name(WORKGROUP_KEY).value(tuple.mWorkgroup);
       writer.name(USERNAME_KEY).value(tuple.mUsername);
       writer.name(PASSWORD_KEY).value(tuple.mPassword);
+      writer.name(MOUNT_KEY).value(tuple.mIsMounted);
       writer.endObject();
     }
   }
 
-  private static String decode(String content, Map<String, CredentialTuple> credentialMap) {
+  private static String decode(String content, Map<String, ShareTuple> shareMap) {
     final StringReader stringReader = new StringReader(content);
     try (final JsonReader jsonReader = new JsonReader(stringReader)) {
       jsonReader.beginObject();
 
       String uri = null;
-      CredentialTuple tuple = null;
+      ShareTuple tuple = null;
       while (jsonReader.hasNext()) {
         final String name = jsonReader.nextName();
         switch (name) {
@@ -217,7 +275,7 @@ public class ShareManager implements Iterable<String> {
       if (uri == null || tuple == null) {
         throw new IllegalStateException("Either uri or tuple is null.");
       }
-      credentialMap.put(uri, tuple);
+      shareMap.put(uri, tuple);
 
       return uri;
     } catch (IOException e) {
@@ -226,48 +284,51 @@ public class ShareManager implements Iterable<String> {
     }
   }
 
-  private static CredentialTuple decodeTuple(JsonReader reader) throws IOException {
+  private static ShareTuple decodeTuple(JsonReader reader) throws IOException {
     if (reader.peek() == JsonToken.NULL) {
       reader.nextNull();
-      return CredentialTuple.EMPTY_TUPLE;
+      return ShareTuple.EMPTY_TUPLE;
     }
 
     String workgroup = null;
     String username = null;
     String password = null;
+    boolean mounted = true;
 
     reader.beginObject();
     while (reader.hasNext()) {
       String name = reader.nextName();
-      String value = reader.nextString();
 
       switch (name) {
         case WORKGROUP_KEY:
-          workgroup = value;
+          workgroup = reader.nextString();
           break;
         case USERNAME_KEY:
-          username = value;
+          username = reader.nextString();
           break;
         case PASSWORD_KEY:
-          password = value;
+          password = reader.nextString();
           break;
+        case MOUNT_KEY:
+          mounted = reader.nextBoolean();
         default:
           Log.w(TAG, "Ignoring unknown key " + name);
       }
     }
     reader.endObject();
 
-    return new CredentialTuple(workgroup, username, password);
+    return new ShareTuple(workgroup, username, password, mounted);
   }
 
-  private static class CredentialTuple {
-    private static final CredentialTuple EMPTY_TUPLE = new CredentialTuple("", "", "");
+  private static class ShareTuple {
+    private static final ShareTuple EMPTY_TUPLE = new ShareTuple("", "", "", true);
 
     private final String mWorkgroup;
     private final String mUsername;
     private final String mPassword;
+    private boolean mIsMounted;
 
-    private CredentialTuple(String workgroup, String username, String password) {
+    private ShareTuple(String workgroup, String username, String password, boolean isMounted) {
       if (workgroup == null) {
         throw new IllegalArgumentException("workgroup is null.");
       }
@@ -280,6 +341,7 @@ public class ShareManager implements Iterable<String> {
       mWorkgroup = workgroup;
       mUsername = username;
       mPassword = password;
+      mIsMounted = isMounted;
     }
   }
 

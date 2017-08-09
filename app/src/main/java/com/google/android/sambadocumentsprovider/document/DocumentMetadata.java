@@ -310,6 +310,10 @@ public class DocumentMetadata {
     return uri.getPathSegments().isEmpty() && !uri.getAuthority().isEmpty();
   }
 
+  public static boolean isShareUri(Uri uri) {
+    return uri.getPathSegments().size() == 1;
+  }
+
   public static DocumentMetadata fromUri(Uri uri, SmbClient client) throws IOException {
     final List<String> pathSegments = uri.getPathSegments();
     if (pathSegments.isEmpty()) {

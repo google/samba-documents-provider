@@ -70,6 +70,8 @@ public class MountServerActivity extends AppCompatActivity {
   private static final String DOMAIN_KEY = "domain";
   private static final String USERNAME_KEY = "username";
   private static final String PASSWORD_KEY = "password";
+  private static final String AUTH_LAUNCH_KEY = "authLaunch";
+
 
   private final OnClickListener mPasswordStateChangeListener = new OnClickListener() {
     @Override
@@ -136,8 +138,8 @@ public class MountServerActivity extends AppCompatActivity {
     mPasswordEditText = (EditText) findViewById(R.id.password);
     mPasswordEditText.setOnKeyListener(mMountKeyListener);
 
-    final Button mount = (Button) findViewById(R.id.mount);
-    mount.setOnClickListener(mMountListener);
+    final Button mMountShareButton = (Button) findViewById(R.id.mount);
+    mMountShareButton.setOnClickListener(mMountListener);
 
     final Button cancel = (Button) findViewById(R.id.cancel);
     cancel.setOnClickListener(new OnClickListener() {
@@ -146,6 +148,8 @@ public class MountServerActivity extends AppCompatActivity {
         finish();
       }
     });
+
+    setNeedsPasswordState(false);
 
     // Set MovementMethod to make it respond to clicks on hyperlinks
     final TextView gplv3Link = (TextView) findViewById(R.id.gplv3_link);
@@ -162,6 +166,7 @@ public class MountServerActivity extends AppCompatActivity {
     }
 
     mSharePathEditText.setText(savedInstanceState.getString(SHARE_PATH_KEY, ""));
+
     final boolean needsPassword = savedInstanceState.getBoolean(NEEDS_PASSWORD_KEY);
     setNeedsPasswordState(needsPassword);
     if (needsPassword) {
@@ -236,7 +241,7 @@ public class MountServerActivity extends AppCompatActivity {
 
     final DocumentMetadata metadata = DocumentMetadata.createShare(host, share);
 
-    if (mShareManager.containsShare(metadata.getUri().toString())) {
+    if (mShareManager.isShareMounted(metadata.getUri().toString())) {
       showMessage(R.string.share_already_mounted);
       return;
     }
