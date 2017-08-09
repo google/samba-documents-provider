@@ -22,6 +22,7 @@ import static com.google.android.sambadocumentsprovider.base.DocumentIdHelper.to
 import static com.google.android.sambadocumentsprovider.base.DocumentIdHelper.toUri;
 import static com.google.android.sambadocumentsprovider.base.DocumentIdHelper.toUriString;
 
+import android.app.AuthenticationRequiredException;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
@@ -46,6 +47,7 @@ import com.google.android.sambadocumentsprovider.SambaProviderApplication;
 import com.google.android.sambadocumentsprovider.ShareManager;
 import com.google.android.sambadocumentsprovider.ShareManager.MountedShareChangeListener;
 import com.google.android.sambadocumentsprovider.TaskManager;
+import com.google.android.sambadocumentsprovider.auth.AuthActivity;
 import com.google.android.sambadocumentsprovider.base.AuthFailedException;
 import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.base.DocumentCursor;
@@ -57,11 +59,11 @@ import com.google.android.sambadocumentsprovider.document.LoadChildrenTask;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.document.LoadDocumentTask;
 import com.google.android.sambadocumentsprovider.document.LoadStatTask;
+import com.google.android.sambadocumentsprovider.mount.MountServerActivity;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbFacade;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -186,7 +188,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     if(BuildConfig.DEBUG) Log.d(TAG, "Querying roots.");
     projection = (projection == null) ? DEFAULT_ROOT_PROJECTION : projection;
 
-    MatrixCursor cursor = new MatrixCursor(projection, mShareManager.size());
+    MatrixCursor cursor = new MatrixCursor(projection);
 
     cursor.addRow(new Object[] {
       NetworkBrowser.SMB_BROWSING_URI.toString(),
@@ -197,6 +199,10 @@ public class SambaDocumentsProvider extends DocumentsProvider {
     });
 
     for (String uri : mShareManager) {
+      if (!mShareManager.isShareMounted(uri)) {
+        continue;
+      }
+
       final String name;
       final Uri parsedUri = Uri.parse(uri);
       try(CacheResult result = mCache.get(parsedUri)) {
@@ -273,7 +279,7 @@ public class SambaDocumentsProvider extends DocumentsProvider {
 
   @Override
   public Cursor queryChildDocuments(String documentId, String[] projection, String sortOrder)
-      throws FileNotFoundException {
+      throws FileNotFoundException, AuthenticationRequiredException {
     if (BuildConfig.DEBUG) Log.d(TAG, "Querying children documents under " + documentId);
     projection = (projection == null) ? DEFAULT_DOCUMENT_PROJECTION : projection;
 
@@ -360,7 +366,12 @@ public class SambaDocumentsProvider extends DocumentsProvider {
         return cursor;
       }
     } catch (AuthFailedException e) {
-      return buildErrorCursor(projection, R.string.view_folder_denied);
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && DocumentMetadata.isShareUri(uri)) {
+        throw new AuthenticationRequiredException(
+                e, AuthActivity.createAuthIntent(getContext(), uri.toString()));
+      } else {
+        return buildErrorCursor(projection, R.string.view_folder_denied);
+      }
     } catch (FileNotFoundException|RuntimeException e) {
       throw e;
     } catch (Exception e) {

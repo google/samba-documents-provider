@@ -54,43 +54,53 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/clickable_height"
         android:layout_below="@id/share_path"
+        android:checked="false"
         android:text="@string/needs_password"/>
 
       <LinearLayout
         android:id="@+id/password_hide_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:visibility="gone"
         android:orientation="vertical">
+
         <EditText
           android:id="@+id/domain"
           android:layout_width="match_parent"
           android:layout_height="@dimen/clickable_height"
-          android:minLines="1"
-          android:maxLines="1"
+          android:hint="@string/domain"
           android:inputType="text"
-          android:hint="@string/domain"/>
+          android:maxLines="1"
+          android:minLines="1"/>
 
         <EditText
           android:id="@+id/username"
           android:layout_width="match_parent"
           android:layout_height="@dimen/clickable_height"
-          android:minLines="1"
-          android:maxLines="1"
+          android:hint="@string/username"
           android:inputType="text"
-          android:hint="@string/username"/>
+          android:maxLines="1"
+          android:minLines="1"/>
 
         <EditText
           android:id="@+id/password"
           android:layout_width="match_parent"
           android:layout_height="@dimen/clickable_height"
-          android:minLines="1"
-          android:maxLines="1"
-          android:inputType="textPassword"
           android:fontFamily="sans-serif"
-          android:hint="@string/password"/>
+          android:hint="@string/password"
+          android:inputType="textPassword"
+          android:maxLines="1"
+          android:minLines="1"/>
 
       </LinearLayout>
+
+      <CheckBox
+        android:id="@+id/pin_share"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:checked="true"
+        android:text="@string/pin_this_share"
+        android:visibility="gone"/>
+
     </LinearLayout>
   </ScrollView>
 

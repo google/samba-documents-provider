@@ -137,7 +137,7 @@ class BroadcastUtils {
         final int type = buffer.get();
 
         if (type == FILE_SERVER_NODE_TYPE) {
-          servers.add(serverName);
+          servers.add(serverName.trim());
         }
 
         skipBytes(buffer, 2);

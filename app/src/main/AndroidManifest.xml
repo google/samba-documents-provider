@@ -48,6 +48,7 @@
       </intent-filter>
     </provider>
 
+    <activity android:name=".auth.AuthActivity" />
   </application>
 
 </manifest>

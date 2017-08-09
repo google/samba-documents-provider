@@ -70,8 +70,8 @@ class MountServerTask extends BiResultTask<Void, Void, Void> {
 
   @Override
   public Void run(Void... args) throws IOException {
-    mShareManager.mountServer(
-        mMetadata.getUri().toString(), mDomain, mUsername, mPassword, mChecker);
+    mShareManager.addServer(
+        mMetadata.getUri().toString(), mDomain, mUsername, mPassword, mChecker, true);
     return null;
   }
 
