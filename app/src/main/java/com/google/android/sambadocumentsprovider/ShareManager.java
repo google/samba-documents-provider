@@ -24,6 +24,9 @@ import android.util.JsonReader;
 import android.util.JsonToken;
 import android.util.JsonWriter;
 import android.util.Log;
+
+import com.google.android.sambadocumentsprovider.encryption.EncryptionException;
+import com.google.android.sambadocumentsprovider.encryption.EncryptionManager;
 import com.google.android.sambadocumentsprovider.nativefacade.CredentialCache;
 import java.io.IOException;
 import java.io.StringReader;
@@ -57,18 +60,31 @@ public class ShareManager implements Iterable<String> {
   private final Map<String, String> mServerStringMap = new HashMap<>();
   private final CredentialCache mCredentialCache;
 
+  private EncryptionManager mEncryptionManager;
+
   private final List<MountedShareChangeListener> mListeners = new ArrayList<>();
 
   ShareManager(Context context, CredentialCache credentialCache) {
     mCredentialCache = credentialCache;
 
+    mEncryptionManager = new EncryptionManager(context);
+
     mPref = context.getSharedPreferences(SERVER_CACHE_PREF_KEY, Context.MODE_PRIVATE);
     // Loading saved servers.
     final Set<String> serverStringSet =
         mPref.getStringSet(SERVER_STRING_SET_KEY, Collections.<String> emptySet());
+
     final Map<String, ShareTuple> shareMap = new HashMap<>(serverStringSet.size());
+    final List<String> forceEncryption = new ArrayList<>();
     for (String serverString : serverStringSet) {
-      // TODO: Add decryption
+      try {
+        serverString = mEncryptionManager.decrypt(serverString);
+      } catch (EncryptionException e) {
+        Log.i(TAG, "Failed to decrypt server data: ", e);
+
+        forceEncryption.add(serverString);
+      }
+
       String uri = decode(serverString, shareMap);
       if (uri != null) {
         mServerStringMap.put(uri, serverString);
@@ -76,6 +92,8 @@ public class ShareManager implements Iterable<String> {
     }
 
     mServerStringSet = new HashSet<>(serverStringSet);
+
+    encryptServers(forceEncryption);
 
     for (Map.Entry<String, ShareTuple> server : shareMap.entrySet()) {
       final ShareTuple tuple = server.getValue();
@@ -133,8 +151,13 @@ public class ShareManager implements Iterable<String> {
     if (serverString == null) {
       throw new IllegalStateException("Failed to encode credential tuple.");
     }
-    // TODO: Add encryption
-    mServerStringSet.add(serverString);
+
+    try {
+      mServerStringSet.add(mEncryptionManager.encrypt(serverString));
+    } catch (EncryptionException e) {
+      throw new IllegalStateException("Failed to encrypt server data", e);
+    }
+
     if (tuple.mIsMounted) {
       mMountedServerSet.add(uri);
     } else {
@@ -167,6 +190,18 @@ public class ShareManager implements Iterable<String> {
       mCredentialCache.removeCredential(uri);
       throw e;
     }
+  }
+
+  private void encryptServers(List<String> servers) {
+    for (String server : servers) {
+      try {
+        mServerStringSet.add(mEncryptionManager.encrypt(server));
+      } catch (EncryptionException e) {
+        Log.e(TAG, "Failed to encrypt server data: ", e);
+      }
+    }
+
+    mPref.edit().putStringSet(SERVER_STRING_SET_KEY, mServerStringSet).apply();
   }
 
   public synchronized boolean unmountServer(String uri) {
