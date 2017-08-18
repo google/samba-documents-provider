@@ -220,13 +220,22 @@ public class SambaDocumentsProvider extends DocumentsProvider {
             toRootId(metadata),
             toDocumentId(parsedUri),
             name,
-            Root.FLAG_SUPPORTS_CREATE | Root.FLAG_SUPPORTS_IS_CHILD,
+            Root.FLAG_SUPPORTS_CREATE | Root.FLAG_SUPPORTS_IS_CHILD | Root.FLAG_SUPPORTS_EJECT,
             R.drawable.ic_folder_shared
         });
       }
 
     }
     return cursor;
+  }
+
+  @Override
+  public void ejectRoot(String rootId) {
+    if (BuildConfig.DEBUG) Log.d(TAG, "Ejecting root: " + rootId);
+
+    if (!mShareManager.unmountServer(rootId)) {
+      throw new IllegalStateException("Failed to eject root: " + rootId);
+    }
   }
 
   @Override
