@@ -77,15 +77,16 @@ public class ShareManager implements Iterable<String> {
     final Map<String, ShareTuple> shareMap = new HashMap<>(serverStringSet.size());
     final List<String> forceEncryption = new ArrayList<>();
     for (String serverString : serverStringSet) {
+      String decryptedString = serverString;
       try {
-        serverString = mEncryptionManager.decrypt(serverString);
+        decryptedString = mEncryptionManager.decrypt(serverString);
       } catch (EncryptionException e) {
         Log.i(TAG, "Failed to decrypt server data: ", e);
 
         forceEncryption.add(serverString);
       }
 
-      String uri = decode(serverString, shareMap);
+      String uri = decode(decryptedString, shareMap);
       if (uri != null) {
         mServerStringMap.put(uri, serverString);
       }
@@ -152,8 +153,10 @@ public class ShareManager implements Iterable<String> {
       throw new IllegalStateException("Failed to encode credential tuple.");
     }
 
+    String encryptedString;
     try {
-      mServerStringSet.add(mEncryptionManager.encrypt(serverString));
+      encryptedString = mEncryptionManager.encrypt(serverString);
+      mServerStringSet.add(encryptedString);
     } catch (EncryptionException e) {
       throw new IllegalStateException("Failed to encrypt server data", e);
     }
@@ -164,7 +167,7 @@ public class ShareManager implements Iterable<String> {
       mMountedServerSet.remove(uri);
     }
     mPref.edit().putStringSet(SERVER_STRING_SET_KEY, mServerStringSet).apply();
-    mServerStringMap.put(uri, serverString);
+    mServerStringMap.put(uri, encryptedString);
 
     if (shouldNotify) {
       notifyServerChange();
@@ -215,6 +218,9 @@ public class ShareManager implements Iterable<String> {
     }
 
     mServerStringMap.remove(uri);
+    mMountedServerSet.remove(uri);
+
+    mPref.edit().putStringSet(SERVER_STRING_SET_KEY, mServerStringSet).apply();
 
     mCredentialCache.removeCredential(uri);
 

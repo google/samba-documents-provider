@@ -653,6 +653,8 @@ void Java_com_google_android_sambadocumentsprovider_nativefacade_NativeCredentia
   }
   SambaClient::CredentialCache *cache =
       reinterpret_cast<SambaClient::CredentialCache *>(pointer);
+
+  cache->remove(uri);
 }
 
 void Java_com_google_android_sambadocumentsprovider_SambaConfiguration_setEnv(
