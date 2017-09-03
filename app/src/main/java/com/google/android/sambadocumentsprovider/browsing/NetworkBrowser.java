@@ -22,33 +22,83 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.google.android.sambadocumentsprovider.TaskManager;
+import com.google.android.sambadocumentsprovider.base.DirectoryEntry;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
 import com.google.android.sambadocumentsprovider.browsing.broadcast.BroadcastBrowsingProvider;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
+import com.google.android.sambadocumentsprovider.nativefacade.SmbDir;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+
+/**
+ * This class discovers Samba servers and shares under them available on the local network.
+ */
 public class NetworkBrowser {
-  public static final Uri SMB_BROWSING_URI = Uri.parse("smb://");
+  private static final Uri SMB_BROWSING_URI = Uri.parse("smb://");
 
   private static final String TAG = "NetworkBrowser";
 
   private final NetworkBrowsingProvider mMasterProvider;
   private final NetworkBrowsingProvider mBroadcastProvider;
   private final TaskManager mTaskManager;
+  private final SmbClient mClient;
 
   public NetworkBrowser(SmbClient client, TaskManager taskManager) {
     mMasterProvider = new MasterBrowsingProvider(client);
     mBroadcastProvider = new BroadcastBrowsingProvider();
     mTaskManager = taskManager;
+    mClient = client;
   }
 
-  public AsyncTask getServersAsync(OnTaskFinishedCallback<List<String>> callback) {
-    AsyncTask<Void, Void, List<String>> loadServersTask = new LoadServersTask(callback);
+  /**
+   * Asynchronously get available servers and shares under them.
+   * A server name is mapped to the list of its children.
+   */
+  public AsyncTask getSharesAsync(OnTaskFinishedCallback<Map<String, List<String>>> callback) {
+    AsyncTask<Void, Void, Map<String, List<String>>> loadServersTask = new LoadServersTask(callback);
 
     mTaskManager.runTask(SMB_BROWSING_URI, loadServersTask);
 
     return loadServersTask;
+  }
+
+  private Map<String, List<String>> getShares() throws BrowsingException {
+    List<String> servers = getServers();
+
+    Map<String, List<String>> shares = new HashMap<>();
+
+    for (String server : servers) {
+      try {
+        shares.put(server, getSharesForServer(server));
+      } catch (IOException e) {
+        Log.e(TAG, "Failed to load shares for server", e);
+      }
+    }
+
+    return shares;
+  }
+
+  private List<String> getSharesForServer(String server) throws IOException {
+    List<String> shares = new ArrayList<>();
+
+    String serverUri = SMB_BROWSING_URI + server;
+    SmbDir serverDir = mClient.openDir(serverUri);
+
+    DirectoryEntry shareEntry;
+    while ((shareEntry = serverDir.readDir()) != null) {
+      if (shareEntry.getType() == DirectoryEntry.FILE_SHARE) {
+        shares.add(serverUri + "/" + shareEntry.getName().trim());
+      } else {
+        Log.i(TAG, "Unsupported entry type: " + shareEntry.getType());
+      }
+    }
+
+    return shares;
   }
 
   private List<String> getServers() throws BrowsingException {
@@ -67,23 +117,19 @@ public class NetworkBrowser {
     return servers;
   }
 
-  private class LoadServersTask extends AsyncTask<Void, Void, List<String>> {
-    final OnTaskFinishedCallback<List<String>> mCallback;
+  private class LoadServersTask extends AsyncTask<Void, Void, Map<String, List<String>>> {
+    final OnTaskFinishedCallback<Map<String, List<String>>>  mCallback;
 
     private BrowsingException mException;
 
-    LoadServersTask(OnTaskFinishedCallback<List<String>> callback) {
+    LoadServersTask(OnTaskFinishedCallback<Map<String, List<String>>>  callback) {
       mCallback = callback;
     }
 
-    List<String> loadData() throws BrowsingException {
-      return getServers();
-    }
-
     @Override
-    protected List<String> doInBackground(Void... voids) {
+    protected Map<String, List<String>>  doInBackground(Void... voids) {
       try {
-        return loadData();
+        return getShares();
       } catch (BrowsingException e) {
         Log.e(TAG, "Failed to load data for network browsing: ", e);
         mException = e;
@@ -91,7 +137,7 @@ public class NetworkBrowser {
       }
     }
 
-    protected void onPostExecute(List<String> servers) {
+    protected void onPostExecute(Map<String, List<String>>  servers) {
       if (servers != null) {
         mCallback.onTaskFinished(OnTaskFinishedCallback.SUCCEEDED, servers, null);
       } else {

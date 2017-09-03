@@ -38,6 +38,7 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnKeyListener;
@@ -52,19 +53,20 @@ import com.google.android.sambadocumentsprovider.ShareManager;
 import com.google.android.sambadocumentsprovider.TaskManager;
 import com.google.android.sambadocumentsprovider.base.AuthFailedException;
 import com.google.android.sambadocumentsprovider.base.OnTaskFinishedCallback;
+import com.google.android.sambadocumentsprovider.browsing.NetworkBrowser;
 import com.google.android.sambadocumentsprovider.cache.DocumentCache;
 import com.google.android.sambadocumentsprovider.document.DocumentMetadata;
 import com.google.android.sambadocumentsprovider.nativefacade.SmbClient;
 import com.google.android.sambadocumentsprovider.provider.SambaDocumentsProvider;
 
 import java.util.List;
+import java.util.Map;
 
 public class MountServerActivity extends AppCompatActivity {
 
   private static final String TAG = "MountServerActivity";
 
   private static final String ACTION_BROWSE = "android.provider.action.BROWSE";
-
   private static final String SHARE_PATH_KEY = "sharePath";
   private static final String NEEDS_PASSWORD_KEY = "needsPassword";
   private static final String DOMAIN_KEY = "domain";
@@ -100,15 +102,34 @@ public class MountServerActivity extends AppCompatActivity {
     }
   };
 
+  private final OnTaskFinishedCallback<Map<String, List<String>>>  mBrowsingCallback
+          = new OnTaskFinishedCallback<Map<String, List<String>>>() {
+    @Override
+    public void onTaskFinished(
+            @Status int status, @Nullable Map<String, List<String>>  result, @Nullable Exception exception) {
+
+      for (String server : result.keySet()) {
+        mBrowsingAdapter.addServer(server, result.get(server));
+      }
+
+      mBrowsingAdapter.finishLoading();
+
+      if (mSharePathEditText.isPopupShowing()) {
+        mSharePathEditText.filter();
+      }
+    }
+  };
+
   private DocumentCache mCache;
   private TaskManager mTaskManager;
   private ShareManager mShareManager;
   private SmbClient mClient;
+  private BrowsingAutocompleteAdapter mBrowsingAdapter;
 
   private CheckBox mNeedPasswordCheckbox;
   private View mPasswordHideGroup;
 
-  private EditText mSharePathEditText;
+  private BrowsingAutocompleteTextView mSharePathEditText;
   private EditText mDomainEditText;
   private EditText mUsernameEditText;
   private EditText mPasswordEditText;
@@ -130,7 +151,7 @@ public class MountServerActivity extends AppCompatActivity {
 
     mPasswordHideGroup = findViewById(R.id.password_hide_group);
 
-    mSharePathEditText = (EditText) findViewById(R.id.share_path);
+    mSharePathEditText = (BrowsingAutocompleteTextView) findViewById(R.id.share_path);
     mSharePathEditText.setOnKeyListener(mMountKeyListener);
 
     mUsernameEditText = (EditText) findViewById(R.id.username);
@@ -158,6 +179,8 @@ public class MountServerActivity extends AppCompatActivity {
     mConnectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
 
     restoreSavedInstanceState(savedInstanceState);
+
+    startBrowsing();
   }
 
   private void restoreSavedInstanceState(@Nullable Bundle savedInstanceState) {
@@ -218,6 +241,23 @@ public class MountServerActivity extends AppCompatActivity {
     } catch (ActivityNotFoundException e) {
       Toast.makeText(this, R.string.no_web_browser, Toast.LENGTH_LONG).show();
     }
+  }
+
+  private void startBrowsing() {
+    mSharePathEditText.setOnTouchListener(new View.OnTouchListener() {
+      @Override
+      public boolean onTouch(View view, MotionEvent motionEvent) {
+        mSharePathEditText.filter();
+        return false;
+      }
+    });
+
+    mBrowsingAdapter = new BrowsingAutocompleteAdapter();
+    mSharePathEditText.setAdapter(mBrowsingAdapter);
+    mSharePathEditText.setThreshold(0);
+
+    NetworkBrowser browser = new NetworkBrowser(mClient, mTaskManager);
+    browser.getSharesAsync(mBrowsingCallback);
   }
 
   private void tryMount() {
