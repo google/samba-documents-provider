@@ -49,6 +49,7 @@
   <string name="no_web_browser">It needs a web browser to send feedback.</string>
 
   <string name="browsing_root_name">Samba Shares</string>
+  <string name="browsing_waiting_prompt">Looking for shares…</string>
 
   <string name="pin_this_share">Pin this share</string>
   <string name="login">Login</string>

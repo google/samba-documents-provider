@@ -30,7 +30,9 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -57,12 +59,12 @@ public class BroadcastBrowsingProvider implements NetworkBrowsingProvider {
         serverFutures.add(mExecutor.submit(new GetServersForInterfaceTask(address, mTransId)));
       }
 
-      List<String> servers = new ArrayList<>();
+      Set<String> servers = new HashSet<>();
       for (Future<List<String>> future : serverFutures) {
         servers.addAll(future.get());
       }
 
-      return servers;
+      return new ArrayList<>(servers);
     } catch (IOException | ExecutionException | InterruptedException e) {
       Log.e(TAG, "Failed to get servers via broadcast", e);
       throw new BrowsingException("Failed to get servers via broadcast", e);
