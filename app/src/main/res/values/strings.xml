@@ -18,7 +18,7 @@
 <resources>
   <string name="app_name">Android Samba Client</string>
 
-  <string name="share_path">Share Path</string>
+  <string name="share_path">Share Path e.g. smb://server/share</string>
   <string name="domain">Domain</string>
   <string name="username">Username</string>
   <string name="password">Password</string>
