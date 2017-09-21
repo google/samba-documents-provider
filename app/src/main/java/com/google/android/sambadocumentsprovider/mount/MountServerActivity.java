@@ -362,6 +362,9 @@ public class MountServerActivity extends AppCompatActivity {
     final String path = mSharePathEditText.getText().toString();
     if (path.startsWith("\\")) {
       // Possibly Windows share path
+      if (path.length() == 1) {
+        return null;
+      }
       final int endCharacter = path.endsWith("\\") ? path.length() - 1 : path.length();
       final String[] components = path.substring(2, endCharacter).split("\\\\");
       return components.length == 2 ? components : null;
