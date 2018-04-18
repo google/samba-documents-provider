@@ -26,6 +26,7 @@
 #include "credential_cache/CredentialCache.h"
 
 #include <stdlib.h>
+#include <errno.h>
 
 #define CLASS_PREFIX "com/google/android/sambadocumentsprovider"
 
