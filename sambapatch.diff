@@ -219,7 +219,7 @@ index 0000000..7d009da
 +# Create standalone tool chain
 +rm -rf $TOOLCHAIN
 +echo "Creating standalone toolchain..."
-+$NDK/build/tools/make_standalone_toolchain.py --arch $PLATFORM_ARCH --api $ANDROID_VER --install-dir $TOOLCHAIN --unified-headers
++$NDK/build/tools/make_standalone_toolchain.py --arch $PLATFORM_ARCH --api $ANDROID_VER --install-dir $TOOLCHAIN
 +
 +# Configure Samba build
 +echo "Configuring Samba..."
@@ -363,7 +363,7 @@ index 0000000..55a5f1e
 +}
 +
 +static void set_addr(struct ifaddrs_container *ifa, int family, const void *data, size_t byteCount) {
-+  if (ifa->ifa.ifa_addr = NULL) {
++  if (ifa->ifa.ifa_addr == NULL) {
 +    // Assume this is IFA_LOCAL, if not set_local_addr will fix it.
 +    ifa->ifa.ifa_addr = copy_addr(family, data, byteCount, &ifa->addr, ifa->idx);
 +  } else {
