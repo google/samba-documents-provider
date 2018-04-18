@@ -20,7 +20,7 @@ add_library(samba_client
 include_directories(src/main/cpp)
 
 set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} -std=c++0x -O2 -D_FORTIFY_SOURCE=2 -fstack-protector-all -fPIE")
+    "${CMAKE_CXX_FLAGS} -std=c++0x -O2 -D_FORTIFY_SOURCE=2 -D__USE_FILE_OFFSET64=1 -fstack-protector-all -fPIE")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pie")
 
 # Searches for a specified prebuilt library and stores the path as a
