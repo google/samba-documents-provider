@@ -219,7 +219,7 @@ index 0000000..7d009da
 +# Create standalone tool chain
 +rm -rf $TOOLCHAIN
 +echo "Creating standalone toolchain..."
-+$NDK/build/tools/make_standalone_toolchain.py --arch $PLATFORM_ARCH --api $ANDROID_VER --install-dir $TOOLCHAIN --unified-headers
++$NDK/build/tools/make_standalone_toolchain.py --arch $PLATFORM_ARCH --api $ANDROID_VER --install-dir $TOOLCHAIN
 +
 +# Configure Samba build
 +echo "Configuring Samba..."
